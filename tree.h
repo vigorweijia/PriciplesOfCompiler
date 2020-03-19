@@ -40,4 +40,6 @@ extern void TreeInsert(TreeNode* fa, TreeNode *ch);
 extern void TreeTraverse(TreeNode* root, int wsCount);
 extern void TreeDestroy(TreeNode* root);
 
+extern int endLineno;
+
 #endif

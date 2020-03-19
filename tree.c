@@ -5,6 +5,8 @@
 
 #include "tree.h"
 
+int endLineno;
+
 //#define TREE_DEBUG 1
 
 TreeNode* CreateTreeNode(TreeNodeType type, int lineno, const char* identifier, const char* value)
@@ -76,7 +78,7 @@ void TreeInsert(TreeNode* father, TreeNode *child)
     return;
 }
 
-void TreeTraverse(TreeNode* root, int wsCount)
+void OnTreeTraverse(TreeNode* root, int wsCount)
 {
     if(root == NULL) return;
     for(int i = 0; i < wsCount; i++) printf("  ");
@@ -104,8 +106,16 @@ void TreeTraverse(TreeNode* root, int wsCount)
         assert(0);
         break;
     }
-    TreeTraverse(root->firstChild, wsCount+1);
-    TreeTraverse(root->nextSibling, wsCount);
+    OnTreeTraverse(root->firstChild, wsCount+1);
+    OnTreeTraverse(root->nextSibling, wsCount);
+}
+
+void TreeTraverse(TreeNode* root, int wsCount)
+{
+    if(root == NULL || root->firstChild == NULL)
+        printf("Program (%d)\n",endLineno);
+    else 
+        OnTreeTraverse(root, 0);
 }
 
 void TreeDestroy(TreeNode* root)

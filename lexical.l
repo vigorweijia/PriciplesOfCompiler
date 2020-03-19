@@ -11,6 +11,8 @@
         yylloc.last_column = yycolumn + yyleng - 1; \
         yycolumn += yyleng;
 
+    extern int endLineno;
+
     static void CreateNode(TreeNodeType type, const char* identifier)
     {
         yylval.tree_node = CreateTreeNode(type, yylineno, identifier, yytext);
@@ -27,6 +29,8 @@
 %}
 
 %option yylineno
+
+%x COMMENT
 
 DIGIT [0-9]
 LETTER [_a-zA-Z]
@@ -69,7 +73,11 @@ WHILE while
     while(c != '\n') c = input();
     }
 
-"/*"(([^\*]*(\*[^\/])?)*)"*/" {Debug("Comments");}
+"/*" {BEGIN(COMMENT);}
+<COMMENT>"*/" {BEGIN(INITIAL);}
+<COMMENT>\n {}
+<COMMENT>. {}
+<COMMENT><<EOF>> {printf("Error type A at line %d: met EOF\n",yylineno); lexicalErrorFlag = 1; yyterminate();}
 
 {SEMI} {Debug("SEMI");
     yylval.tree_node = CreateTreeNode(TYPE_OTHER_TERMINAL, yylineno, "SEMI", yytext);
@@ -208,7 +216,7 @@ WHILE while
 
 "\n" {yycolumn = 1;}
 
-<<EOF>> {yyterminate();}
+<<EOF>> {endLineno = yylineno; yyterminate();}
 
 {WS} {}
 
