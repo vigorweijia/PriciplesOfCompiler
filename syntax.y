@@ -254,6 +254,7 @@ VarList : ParamDec COMMA VarList {
 ParamDec : Specifier VarDec {
         $$ = CreateTreeNode(TYPE_NONTERMINAL, @$.first_line, "ParamDec", "");
         TreeInsert($$, $1);
+        TreeInsert($$, $2);
     }
     ;
 
@@ -323,12 +324,12 @@ Stmt : Exp SEMI {
     //| Exp error SEMI{
     //    ErrorProcess(@2.first_line, defaultErr);
     //}
+    | RETURN error SEMI {
+        ErrorProcess(yylineno, "Return syntax error");
+    }
     | error SEMI {
         ErrorProcess(yylineno, defaultErr);
     }
-    //| RETURN Exp error {
-    //    ErrorProcess(@3.first_line, "Missing \';\'");
-    //}
     //| IF LP error RP Stmt %prec LOWER_THAN_ELSE {
     //    ErrorProcess(@3.first_line, defaultErr);
     //}
@@ -363,9 +364,9 @@ Def : Specifier DecList SEMI {
     //| Specifier error SEMI {
     //    ErrorProcess(@2.first_line, defaultErr);
     //}
-    //| Specifier DecList error {
-    //    ErrorProcess(@3.first_line, "Missing \';\'");
-    //}
+    | Specifier DecList error {
+        ErrorProcess(yylineno, "Missing \';\'");
+    }
     ;
 DecList : Dec {
         $$ = CreateTreeNode(TYPE_NONTERMINAL, @$.first_line, "DecList", "");
@@ -493,15 +494,18 @@ Exp : Exp ASSIGNOP Exp {
         $$ = CreateTreeNode(TYPE_NONTERMINAL, @$.first_line, "Exp", "");
         TreeInsert($$, $1);
     }
-    //| LP error RP {
-    //    ErrorProcess(@2.first_line, defaultErr);
+    //| Exp LB Exp error SEMI {
+    //    ErrorProcess(yylineno, "Missing \']\'");
     //}
-    //| ID LP error RP {
-    //    ErrorProcess(@3.first_line, defaultErr);
-    //}
-    //| Exp LB error RB {
-    //    ErrorProcess(@2.first_line, defaultErr);
-    //}
+    | LP error RP {
+        ErrorProcess(@2.first_line, "Exp error");
+    }
+    | ID LP error RP {
+        ErrorProcess(@3.first_line, "Exp error");
+    }
+    | Exp LB error RB {
+        ErrorProcess(@2.first_line, "Exp error");
+    }
     ;
 Args : Exp COMMA Args {
         $$ = CreateTreeNode(TYPE_NONTERMINAL, @$.first_line, "Args", "");

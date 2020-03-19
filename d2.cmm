@@ -1,0 +1,5 @@
+int float_test()
+{
+	float x1 = .12E-3;
+	float x2 = 1.2e+3;
+}

@@ -1,4 +1,7 @@
-int method() 
+int method() {
 {
-
-
+	int a,b,c;
+	c = a+b*a;
+	b = a && c;
+	return b;
+}
