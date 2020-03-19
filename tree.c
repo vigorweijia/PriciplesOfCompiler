@@ -5,6 +5,8 @@
 
 #include "tree.h"
 
+//#define TREE_DEBUG 1
+
 TreeNode* CreateTreeNode(TreeNodeType type, int lineno, const char* identifier, const char* value)
 {
     TreeNode* node = (TreeNode*)malloc(sizeof(TreeNode));
@@ -44,12 +46,14 @@ void TreeInsert(TreeNode* father, TreeNode *child)
         return;
     }
 
-    /*if(child == NULL) {
+#ifdef TREE_DEBUG    
+    if(child == NULL) {
         printf("father:%s  child:NULL  @lineNo:%d\n",father->m_identifier,father->m_lineno);
     }
     else {
         printf("father:%s  child:%s  @lineNo:%d\n",father->m_identifier,child->m_identifier,father->m_lineno);
-    }*/
+    }
+#endif
 
     if(child == NULL)
     {   

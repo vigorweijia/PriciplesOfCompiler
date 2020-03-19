@@ -8,6 +8,7 @@
 extern TreeNode* root;
 extern int syntaxErrorFlag;
 extern int lexicalErrorFlag;
+extern void ErrorPrint();
 
 int main(int argc, char** argv) 
 {
@@ -27,5 +28,10 @@ int main(int argc, char** argv)
         TreeDestroy(root);
 #endif
     }
+    else
+    {
+        ErrorPrint();
+    }
+    
     return 0;
 }

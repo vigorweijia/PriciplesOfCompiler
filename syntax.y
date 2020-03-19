@@ -1,8 +1,11 @@
 %{
     #include <stdio.h>
+    #include <string.h>
 
     #include "tree.h"
     #include "lex.yy.c"
+
+    #define LENTH 128
 
     const char* defaultErr = "Syntax Error";
 
@@ -10,10 +13,39 @@
 
     int syntaxErrorFlag = 0;
 
+    typedef enum{
+        ERROR_COMMON = 0,
+        ERROR_DETAIL = 1
+    }ErrorType;
+
+    typedef struct ErrorMsg {
+        ErrorType errorType;
+        int lineno;
+        char msg[LENTH];
+    }ErrorMsg;
+
+    ErrorMsg errorMsgList[LENTH];
+    int errorCnt = 0;
+
     void ErrorProcess(int lineno, const char* msg)
     {
-        printf("Error type B at Line %d: %s.\n",lineno,msg);
-        syntaxErrorFlag = 1;
+        for(int i = 0; i < errorCnt; i++)
+        {
+            if(errorMsgList[i].lineno == lineno)
+            {
+                strcpy(errorMsgList[i].msg, msg);
+                errorMsgList[i].errorType = ERROR_DETAIL;
+            }
+        }
+    }
+
+    void ErrorPrint() 
+    {
+        for(int i = 0; i < errorCnt; i++)
+        {
+            if(errorMsgList[i].errorType == ERROR_DETAIL) printf("Error type B at Line %d: %s.\n",errorMsgList[i].lineno,errorMsgList[i].msg);
+            else printf("Error type B at Line %d: %s.\n",errorMsgList[i].lineno,defaultErr);
+        }
     }
 %}
 
@@ -52,12 +84,13 @@
 %type <tree_node> Exp Args
 
 %right ASSIGNOP
-%left PLUS MINUS STAR DIV
-%left LP RP LB RB
-%left OR AND
+%left OR
+%left AND
+%left PLUS MINUS
+%left STAR DIV
 %right NOT
+%left LP RP LB RB
 %left DOT
-%left RELOP
 
 %nonassoc LOWER_THAN_ELSE
 %nonassoc ELSE
@@ -96,17 +129,17 @@ ExtDef : Specifier ExtDecList SEMI {
         TreeInsert($$, $3);
     }
     | error SEMI {
-        ErrorProcess(@1.first_line, defaultErr);
+        ErrorProcess(yylineno, defaultErr);
     }
     //| Specifier ExtDecList error {
     //    ErrorProcess(@3.first_line, "Missing \';\'");
     //}
-    | Specifier error {
-        ErrorProcess(@2.first_line, "Missing \';\'");
-    }
-    | Specifier error SEMI {
-        ErrorProcess(@2.first_line, defaultErr);
-    }
+    //| Specifier error {
+    //    ErrorProcess(@2.first_line, "Missing \';\'");
+    //}
+    //| Specifier error SEMI {
+    //    ErrorProcess(@2.first_line, defaultErr);
+    //}
     //| Specifier error CompSt{
     //    ErrorProcess(@2.first_line, defaultErr);
     //}
@@ -121,9 +154,9 @@ ExtDecList : VarDec {
         TreeInsert($$, $2);
         TreeInsert($$, $3);
     }
-    | VarDec error ExtDecList {
-        ErrorProcess(@2.first_line, defaultErr);
-    }
+    //| VarDec error ExtDecList {
+    //    ErrorProcess(@2.first_line, defaultErr);
+    //}
     ;
 
 /*Specifier*/
@@ -180,9 +213,9 @@ VarDec : ID {
         TreeInsert($$, $3);
         TreeInsert($$, $4);
     }
-    | VarDec LB error RB {
-        ErrorProcess(@3.first_line, "Content in \"[]\" must be INT");
-    }
+    //| VarDec LB error RB {
+    //    ErrorProcess(@3.first_line, "Content in \"[]\" must be INT");
+    //}
     //| VarDec LB INT error {
     //    ErrorProcess(@3.first_line, "Missing \']\'");
     //}
@@ -200,8 +233,8 @@ FunDec : ID LP VarList RP {
         TreeInsert($$, $2);
         TreeInsert($$, $3);
     }
-    | ID LP error RP {
-        ErrorProcess(@3.first_line, defaultErr);
+    | error RP {
+        ErrorProcess(yylineno, defaultErr);
     }
     //| ID LP VarList error {
     //    ErrorProcess(@4.first_line, "Missing \'(\'");
@@ -232,8 +265,11 @@ CompSt : LC DefList StmtList RC {
         TreeInsert($$, $3);
         TreeInsert($$, $4);
     }
+    | error RC {
+        ErrorProcess(yylineno, defaultErr);
+    }
     //| LC DefList StmtList error {
-    //    ErrorProcess(@4.first_line, "Missing \';\'");
+    //    ErrorProcess(@2.first_line, "Missing \'}\'");
     //}
     ;
 StmtList : Stmt StmtList {
@@ -284,30 +320,27 @@ Stmt : Exp SEMI {
         TreeInsert($$, $4);
         TreeInsert($$, $5);
     }
-    | Exp error SEMI{
-        ErrorProcess(@2.first_line, defaultErr);
-    }
+    //| Exp error SEMI{
+    //    ErrorProcess(@2.first_line, defaultErr);
+    //}
     | error SEMI {
-        ErrorProcess(@1.first_line, defaultErr);
+        ErrorProcess(yylineno, defaultErr);
     }
-    | Exp error {
-        ErrorProcess(@2.first_line, defaultErr);
-    }
-    | RETURN Exp error {
-        ErrorProcess(@3.first_line, "Missing \';\'");
-    }
-    | IF LP error RP Stmt %prec LOWER_THAN_ELSE {
-        ErrorProcess(@3.first_line, defaultErr);
-    }
+    //| RETURN Exp error {
+    //    ErrorProcess(@3.first_line, "Missing \';\'");
+    //}
+    //| IF LP error RP Stmt %prec LOWER_THAN_ELSE {
+    //    ErrorProcess(@3.first_line, defaultErr);
+    //}
     //| IF LP Exp error Stmt %prec LOWER_THAN_ELSE {
     //    ErrorProcess(@4.first_line, "Missing \')\'");
     //}
-    | IF LP error RP Stmt ELSE Stmt {
-        ErrorProcess(@3.first_line, defaultErr);
-    }
-    | WHILE LP error RP Stmt {
-        ErrorProcess(@3.first_line, defaultErr);
-    }
+    //| IF LP error RP Stmt ELSE Stmt {
+    //    ErrorProcess(@3.first_line, defaultErr);
+    //}
+    //| WHILE LP error RP Stmt {
+    //    ErrorProcess(@3.first_line, defaultErr);
+    //}
     //| WHILE LP Exp error Stmt {
     //    ErrorProcess(@4.first_line, "Missing \')\'");
     //}
@@ -327,12 +360,12 @@ Def : Specifier DecList SEMI {
         TreeInsert($$, $2);
         TreeInsert($$, $3);
     }
-    | Specifier error SEMI {
-        ErrorProcess(@2.first_line, defaultErr);
-    }
-    | Specifier DecList error {
-        ErrorProcess(@3.first_line, "Missing \';\'");
-    }
+    //| Specifier error SEMI {
+    //    ErrorProcess(@2.first_line, defaultErr);
+    //}
+    //| Specifier DecList error {
+    //    ErrorProcess(@3.first_line, "Missing \';\'");
+    //}
     ;
 DecList : Dec {
         $$ = CreateTreeNode(TYPE_NONTERMINAL, @$.first_line, "DecList", "");
@@ -460,45 +493,15 @@ Exp : Exp ASSIGNOP Exp {
         $$ = CreateTreeNode(TYPE_NONTERMINAL, @$.first_line, "Exp", "");
         TreeInsert($$, $1);
     }
-    | Exp ASSIGNOP error {
-        ErrorProcess(@3.first_line, defaultErr);
-    }
-    | Exp AND error {
-        ErrorProcess(@3.first_line, defaultErr);
-    }
-    | Exp OR error {
-        ErrorProcess(@3.first_line, defaultErr);
-    }
-    | Exp RELOP error {
-        ErrorProcess(@3.first_line, defaultErr);
-    }
-    | Exp PLUS error {
-        ErrorProcess(@3.first_line, defaultErr);
-    }
-    | Exp MINUS error {
-        ErrorProcess(@3.first_line, defaultErr);
-    }
-    | Exp STAR error {
-        ErrorProcess(@3.first_line, defaultErr);
-    }
-    | Exp DIV error {
-        ErrorProcess(@3.first_line, defaultErr);
-    }
-    | LP error RP {
-        ErrorProcess(@2.first_line, defaultErr);
-    }
-    | MINUS error {
-        ErrorProcess(@2.first_line, defaultErr);
-    }
-    | NOT error {
-        ErrorProcess(@2.first_line, defaultErr);
-    }
-    | ID LP error RP {
-        ErrorProcess(@3.first_line, defaultErr);
-    }
-    | Exp LB error RB {
-        ErrorProcess(@2.first_line, defaultErr);
-    }
+    //| LP error RP {
+    //    ErrorProcess(@2.first_line, defaultErr);
+    //}
+    //| ID LP error RP {
+    //    ErrorProcess(@3.first_line, defaultErr);
+    //}
+    //| Exp LB error RB {
+    //    ErrorProcess(@2.first_line, defaultErr);
+    //}
     ;
 Args : Exp COMMA Args {
         $$ = CreateTreeNode(TYPE_NONTERMINAL, @$.first_line, "Args", "");
@@ -514,6 +517,10 @@ Args : Exp COMMA Args {
 %%
 
 int yyerror(char *msg) {
-    //printf("Error type B at Line %d: %s---.\n",yylineno,msg);
+    strcpy(errorMsgList[errorCnt].msg, msg);
+    errorMsgList[errorCnt].lineno = yylineno;
+    errorMsgList[errorCnt].errorType = ERROR_COMMON;
+    errorCnt++;
+    syntaxErrorFlag = 1;
     return 0;
 }

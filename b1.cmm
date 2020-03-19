@@ -27,7 +27,7 @@ int main()
 	while(i < N) {
 		p[i].price = priceA[i];
 		p[i].weight = weightA[];
-		result = result + Calculate(p[i]);
+		result = result + Calculate(p[i]]);
 	}
 	return result;
 }

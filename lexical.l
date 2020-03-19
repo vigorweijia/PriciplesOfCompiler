@@ -208,6 +208,8 @@ WHILE while
 
 "\n" {yycolumn = 1;}
 
+<<EOF>> {yyterminate();}
+
 {WS} {}
 
 . { 
