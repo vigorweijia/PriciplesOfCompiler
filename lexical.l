@@ -77,7 +77,7 @@ WHILE while
 <COMMENT>"*/" {BEGIN(INITIAL);}
 <COMMENT>\n {}
 <COMMENT>. {}
-<COMMENT><<EOF>> {printf("Error type A at line %d: met EOF\n",yylineno); lexicalErrorFlag = 1; yyterminate();}
+<COMMENT><<EOF>> {printf("Error type A at Line %d: met EOF\n",yylineno); lexicalErrorFlag = 1; yyterminate();}
 
 {SEMI} {Debug("SEMI");
     yylval.tree_node = CreateTreeNode(TYPE_OTHER_TERMINAL, yylineno, "SEMI", yytext);
@@ -221,7 +221,7 @@ WHILE while
 {WS} {}
 
 . { 
-    printf("Error type A at line %d: Mysterious characters \'%s\' \n",yylineno,yytext);
+    printf("Error type A at Line %d: Mysterious characters \'%s\' \n",yylineno,yytext);
     lexicalErrorFlag = 1;
     }
 
