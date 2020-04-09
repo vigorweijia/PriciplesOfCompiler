@@ -2,6 +2,7 @@
 #define __SEMANTEME_H__
 
 #include "tree.h"
+#include "SymbolTable.h"
 
 typedef enum{
     T_EMPTY,
@@ -71,8 +72,9 @@ typedef enum{
 void Program(TreeNode *ptr);
 void ExtDefList(TreeNode *ptr);
 void ExtDef(TreeNode *ptr);
+void ExtDecList(TreeNode* ptr, Type type);
 
-void Specifier(TreeNode *ptr);
+Type Specifier(TreeNode *ptr);
 void StructSpecifier(TreeNode *ptr);
 void OptTag(TreeNode *ptr);
 void Tag(TreeNode *ptr);

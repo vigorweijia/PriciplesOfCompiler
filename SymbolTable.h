@@ -12,7 +12,7 @@ typedef struct Type_
 {
     enum {UNKNOWN, BASIC, ARRAY, STRUCTURE, FUNCTION} kind;
     union{
-        int basic;
+        enum {B_UNKNOWN, B_INT, B_FLOAT} basic;
         struct {Type elem; int size;} array;
         FieldList structure;
         struct {Type rtnType; FieldList params; int cnt;} function;
