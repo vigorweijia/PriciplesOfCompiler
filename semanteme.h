@@ -75,11 +75,11 @@ void ExtDef(TreeNode *ptr);
 void ExtDecList(TreeNode* ptr, Type type);
 
 Type Specifier(TreeNode *ptr);
-void StructSpecifier(TreeNode *ptr);
-void OptTag(TreeNode *ptr);
-void Tag(TreeNode *ptr);
+void StructSpecifier(TreeNode *ptr, Type type);
+void OptTag(TreeNode *ptr, Type type);
+void Tag(TreeNode *ptr, Type type);
 
-void VarDec(TreeNode *ptr);
+void VarDec(TreeNode *ptr, Type type);
 void FunDec(TreeNode *ptr);
 void VarList(TreeNode *ptr);
 void ParamDec(TreeNode *ptr);
@@ -88,7 +88,7 @@ void CompSt(TreeNode *ptr);
 void StmtList(TreeNode *ptr);
 void Stmt(TreeNode *ptr);
 
-void DefList(TreeNode *ptr);
+void DefList(TreeNode *ptr, Type type);
 void Def(TreeNode *ptr);
 void DecList(TreeNode *ptr);
 void Dec(TreeNode *ptr);
@@ -97,5 +97,7 @@ void Exp(TreeNode *ptr);
 void Args(TreeNode *ptr);
 
 SyntaxType GetSyntaxType(const char* identifier);
+
+void PrintError(int errorno, int lineno, const char* msg);
 
 #endif

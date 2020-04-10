@@ -1,6 +1,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <stdio.h>
 
 #include "semanteme.h"
 
@@ -8,8 +9,8 @@
 void Program(TreeNode *ptr)
 {
     TreeNode* child = ptr->firstChild;
-    if(strcmp(child->m_identifier, "ExtDefList") == 0) ExtDefList(child);
-    else if(child == NULL) return;
+    if(child == NULL) return;
+    else if(strcmp(child->m_identifier, "ExtDefList") == 0) ExtDefList(child);
     else assert(0);
 }
 
@@ -17,17 +18,17 @@ void ExtDefList(TreeNode *ptr)
 {
     TreeNode* child = ptr->firstChild;
 
-    if(strcmp(child->m_identifier, "ExtDef") == 0)
+    if(child == NULL) 
+    {
+        //ExtDefList -> epsilon
+        return;
+    }
+    else if(strcmp(child->m_identifier, "ExtDef") == 0)
     {
         //ExtDefList -> ExtDef ExtDefList
         TreeNode* nextChild = child->nextSibling;
         ExtDef(child);
         ExtDefList(nextChild);
-    }
-    else if(child == NULL) 
-    {
-        //ExtDefList -> epsilon
-        return;
     }
     else assert(0);
 }
@@ -40,7 +41,7 @@ void ExtDef(TreeNode *ptr)
     ptr = ptr->firstChild;
     Type type = Specifier(ptr);
 
-    TreeNode* child = ptr->firstChild;
+    TreeNode* child = ptr->nextSibling;
     if(strcmp(child->m_identifier, "ExtDecList") == 0)
     {
         //ExtDef -> Specifier ExtDecList SEMI
@@ -64,7 +65,31 @@ void ExtDef(TreeNode *ptr)
 
 void ExtDecList(TreeNode* ptr, Type type)
 {
-
+    TreeNode* child = ptr->firstChild;
+    if(strcmp(child->m_identifier,"VarDec") == 0)
+    {
+        VarDec(child, type);
+        TreeNode* nextChild = child->nextSibling;
+        if(nextChild == NULL)
+        {
+            //ExtDecList -> VarDec
+            return;
+        }
+        else if(strcmp(nextChild->m_identifier,"COMMA") == 0)
+        {
+            //ExtDecList -> VarDec COMMA ExtDecList
+            nextChild = nextChild->nextSibling;
+            ExtDecList(nextChild, type);
+        }
+        else
+        {
+            asseert(0);
+        } 
+    }
+    else
+    {
+        assert(0);
+    }
 }
 
 Type Specifier(TreeNode* ptr)
@@ -90,8 +115,88 @@ Type Specifier(TreeNode* ptr)
     else if(strcmp(child->m_identifier,"StructSpecifier") == 0)
     {
         type->kind = STRUCTURE;
+        StructSpecifier(child,type);
     }
     else 
+    {
+        assert(0);
+    }
+    return type;
+}
+
+void StructSpecifier(TreeNode* ptr, Type type)
+{
+    TreeNode* child = ptr->firstChild;
+    if(strcmp(child->m_identifier,"STRUCT") != 0)
+    {
+        assert(0);
+    }
+
+    child = child->nextSibling;
+    if(strcmp(child->m_identifier,"OptTag") == 0)
+    {
+        //StructSpecifier -> STRUCT OptTag LC DefList RC
+        TreeNode* childDefList = child->nextSibling->nextSibling;
+        OptTag(child, type);
+        DefList(childDefList, type);
+    }
+    else if(strcmp(child->m_identifier,"Tag") == 0)
+    {
+        //StructSpecifier -> STRUCT Tag
+        Tag(child, type);
+    }
+    else 
+    {
+        assert(0);
+    }
+}
+
+void OptTag(TreeNode* ptr, Type type)
+{
+    TreeNode* child = ptr->firstChild;
+    if(child == NULL)
+    {
+        //OptTag -> epsilon
+        return;
+    }
+    else if(strcmp(child->m_identifier, "ID") == 0)
+    {
+        Symbol symbol = HashTableFind(child->m_identifier);
+        if(symbol == NULL)
+        {
+            if(HashTableInsert(child->idName,type) == 0)
+            {
+                printf("Error type 16 at Line %d: Insert Failed!\n",child->m_lineno);
+            }
+        }
+        else
+        {
+            printf("Error type 16 at Line %d: Duplicated name \"%s\"\n",child->m_lineno,child->idName);
+        }
+    } 
+    else
+    {
+        assert(0);
+    }
+}
+
+void Tag(TreeNode* ptr, Type type)
+{
+    ptr = ptr->firstChild;
+    if(strcmp(ptr->m_identifier, "ID") == 0)
+    {
+        Symbol symbol = HashTableFind(ptr->idName);
+        if(symbol != NULL)//define a STRUCT variable
+        {
+            assert(symbol->type->kind == STRUCTURE);
+            *type = *symbol->type;
+        }
+        else 
+        {
+            printf("Error type 17 at Line %d: Undefine structure \"%s\"\n",ptr->m_lineno,ptr->idName);
+        }
+    }
+    else
     {
         assert(0);
     }
@@ -131,4 +236,9 @@ SyntaxType GetSyntaxType(const char* str)
         return T_UNKNOWN;
         break;
     }
+}
+
+void PrintError(int errorno, int lineno, const char* msg)
+{
+    printf("Error type %d at Line %d: %s\n",errorno,lineno,msg);
 }

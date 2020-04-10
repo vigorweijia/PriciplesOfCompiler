@@ -42,6 +42,7 @@ int HashTableInsert(char* name, Type type)
 
 Symbol HashTableFind(const char* name)
 {
+    if(name == NULL) return NULL;
     unsigned int hashVal = HashPjw(name);
     Symbol symbol = gSymbolTable[hashVal];
     while (symbol != NULL)
