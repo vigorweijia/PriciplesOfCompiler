@@ -79,10 +79,10 @@ void StructSpecifier(TreeNode *ptr, Type type);
 void OptTag(TreeNode *ptr, Type type);
 void Tag(TreeNode *ptr, Type type);
 
-void VarDec(TreeNode *ptr, Type type, Origin origin);
+void VarDec(TreeNode *ptr, Type type, Origin origin, Type structSpecifier);
 void FunDec(TreeNode *ptr, Type type);
-void VarList(TreeNode *ptr, Type type);
-void ParamDec(TreeNode *ptr, Type type);
+void VarList(TreeNode *ptr, Type type, Origin origin, Type fundecSpecifier);
+void ParamDec(TreeNode *ptr, Type type, Origin origin, Type fundecSpecifier);
 
 void CompSt(TreeNode *ptr, Type rtnType);
 void StmtList(TreeNode *ptr, Type rtnType);
@@ -90,8 +90,8 @@ void Stmt(TreeNode *ptr, Type rtnType);
 
 void DefList(TreeNode *ptr, Type type, Origin origin);
 void Def(TreeNode *ptr, Type type, Origin origin);
-void DecList(TreeNode *ptr, Type type, Origin origin);
-void Dec(TreeNode *ptr, Type type, Origin origin);
+void DecList(TreeNode *ptr, Type type, Origin origin, Type structSpecifier);
+void Dec(TreeNode *ptr, Type type, Origin origin, Type structSpecifier);
 
 Type Exp(TreeNode *ptr);
 void Args(TreeNode *ptr, FieldList param);

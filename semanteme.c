@@ -72,7 +72,7 @@ void ExtDecList(TreeNode* ptr, Type type)
     TreeNode* child = ptr->firstChild;
     if(strcmp(child->m_identifier,"VarDec") == 0)
     {
-        VarDec(child, type, O_ExtDecList);
+        VarDec(child, type, O_ExtDecList, NULL);
         TreeNode* nextChild = child->nextSibling;
         if(nextChild == NULL)
         {
@@ -206,7 +206,7 @@ void Tag(TreeNode* ptr, Type type)
     }
 }
 
-void VarDec(TreeNode* ptr, Type type, Origin origin)
+void VarDec(TreeNode* ptr, Type type, Origin origin, Type structSpecifier)
 {
     TreeNode* child = ptr->firstChild;
     if(strcmp(child->m_identifier,"ID") == 0)
@@ -214,6 +214,7 @@ void VarDec(TreeNode* ptr, Type type, Origin origin)
         //VarDec -> ID
         switch (origin)
         {
+        case O_CompSt:
         case O_ExtDecList:
             if(HashTableInsert(child->idName,type) == 0)
             {
@@ -221,10 +222,58 @@ void VarDec(TreeNode* ptr, Type type, Origin origin)
             }
             break;
         case O_StructSpecifier:
-            assert(0);
+            {
+                FieldList field = (FieldList)malloc(sizeof(FieldList_));
+                field->name = child->idName;
+                field->next = NULL;
+                field->type = type;
+                //pay attention to structure equal
+                if(HashTableInsert(field->name,type) == 0)
+                {
+                    printf("Error type 15 at Line %d: Redefined field \"%s\".\n",child->m_lineno,child->idName);
+                }
+
+                if(structSpecifier->structure == NULL)
+                {
+                    structSpecifier->structure = field;
+                }
+                else
+                {
+                    FieldList temp = structSpecifier->structure;
+                    while (temp->next != NULL)
+                    {
+                        temp = temp->next;
+                    }
+                    temp->next = field;
+                }
+            }
             break;
         case O_FunDec:
-            assert(0);
+            {
+                FieldList field = (FieldList)malloc(sizeof(FieldList_));
+                field->name = child->idName;
+                field->next = NULL;
+                field->type = type;
+                if(HashTableInsert(field->name,type) == 0)
+                {
+                    printf("Error type at Line %d: Redefined varialble \"%s\".\n",child->m_lineno,child->idName);
+                }
+
+                if(structSpecifier->function.params == NULL)
+                {
+                    structSpecifier->function.params = field;
+                }
+                else
+                {
+                    FieldList temp = structSpecifier->function.params;
+                    while (temp->next != NULL)
+                    {
+                        temp = temp->next;
+                    }
+                    temp->next = field;
+                }
+                structSpecifier->function.cnt++;
+            }
             break;
         default:
             assert(0);
@@ -236,19 +285,18 @@ void VarDec(TreeNode* ptr, Type type, Origin origin)
         //VarDec -> VarDec LB INT RB
         switch (origin)
         {
+        case O_CompSt:
         case O_ExtDecList:
+        case O_StructSpecifier:
+        case O_FunDec:
             {
                 Type arrayType = (Type)malloc(sizeof(Type_));
                 arrayType->kind = ARRAY;
                 arrayType->array.elem = type;
                 arrayType->array.size = child->nextSibling->nextSibling->intValue;
-                VarDec(child,arrayType,origin);
+                VarDec(child,arrayType,origin,structSpecifier);
             }
-            break;
-        case O_StructSpecifier:
-            break;
-        case O_FunDec:
-            break;
+            break;        
         default:
             assert(0);
             break;
@@ -267,9 +315,12 @@ void FunDec(TreeNode* ptr, Type type)
     if(strcmp(nextChild->m_identifier,"VarList") == 0)
     {
         //FunDec -> ID LP VarList RP
-        type->function.params = NULL;
-        type->function.cnt = 0;
-        VarList(nextChild, type);
+        Type fundecSpecifier = (Type)malloc(sizeof(Type_));
+        fundecSpecifier->kind = FUNCTION;
+        fundecSpecifier->function.rtnType = type;
+        fundecSpecifier->function.params = NULL;
+        fundecSpecifier->function.cnt = 0;
+        VarList(nextChild, type, O_FunDec, fundecSpecifier);
         if(HashTableInsert(child->idName, type) == 0)
         {
             printf("Error type 4 at Line %d: Redefined function \"%s\".\n",child->m_lineno,child->idName);
@@ -278,8 +329,11 @@ void FunDec(TreeNode* ptr, Type type)
     else if(strcmp(nextChild->m_identifier,"RP") == 0)
     {
         //FunDec -> ID LP RP
-        type->function.params = NULL;
-        type->function.cnt = 0;
+        Type fundecSpecifier = (Type)malloc(sizeof(Type_));
+        fundecSpecifier->kind = FUNCTION;
+        fundecSpecifier->function.rtnType = type;
+        fundecSpecifier->function.params = NULL;
+        fundecSpecifier->function.cnt = 0;
         if(HashTableInsert(child->idName, type) == 0)
         {
             printf("Error type 4 at Line %d: Redefined function \"%s\".\n",child->m_lineno,child->idName);
@@ -291,8 +345,9 @@ void FunDec(TreeNode* ptr, Type type)
     }
 }
 
-void VarList(TreeNode* ptr, Type type)
+void VarList(TreeNode* ptr, Type type, Origin origin, Type fundecSpecifier)
 {
+    assert(origin == O_FunDec);
     TreeNode* child = ptr->firstChild;
     if(strcmp(child->m_identifier,"ParamDec") == 0)
     {
@@ -300,14 +355,14 @@ void VarList(TreeNode* ptr, Type type)
         if(nextChild == NULL)
         {
             //VarList -> ParamDec
-            ParamDec(child, type);
+            ParamDec(child, type, origin, fundecSpecifier);
         }
         else if(strcmp(nextChild->m_identifier,"COMMA") == 0)
         {
             //VarList -> ParamDec COMMA VarList
-            ParamDec(child, type);
+            ParamDec(child, type, origin, fundecSpecifier);
             nextChild = nextChild->nextSibling;
-            VarList(nextChild, type);
+            VarList(nextChild, type, origin, fundecSpecifier);
         }
         else
         {
@@ -320,15 +375,15 @@ void VarList(TreeNode* ptr, Type type)
     }
 }
 
-void ParamDec(TreeNode* ptr, Type type)
+void ParamDec(TreeNode* ptr, Type type, Origin origin, Type fundecSpecifier)
 {
-    assert(type->kind == FUNCTION);
+    assert(origin == O_FunDec);
     TreeNode* child = ptr->firstChild;
     if(strcmp(child->m_identifier,"Specifier") == 0)
     {
         //ParamDec -> Specifier VarDec
         Type specifier = Specifier(child);
-        VarDec(child->nextSibling, type, O_FunDec);
+        VarDec(child->nextSibling, specifier, origin, fundecSpecifier);
     }
     else
     {
@@ -430,6 +485,7 @@ void Stmt(TreeNode* ptr, Type rtnType)
 
 void DefList(TreeNode* ptr, Type type, Origin origin)
 {
+    assert(origin == O_CompSt || origin == O_StructSpecifier);
     TreeNode* child = ptr->firstChild;
     if(child == NULL)
     {
@@ -450,10 +506,14 @@ void DefList(TreeNode* ptr, Type type, Origin origin)
 
 void Def(TreeNode* ptr, Type type, Origin origin)
 {
+    assert(origin == O_CompSt || origin == O_StructSpecifier);
     TreeNode* child = ptr->firstChild;
     if(strcmp(child->m_identifier,"Specifier") == 0)
     {
         //Def -> Specifier DecList SEMI
+        Type fieldType = Specifier(child);
+        if(origin == O_CompSt) DecList(child->nextSibling, fieldType, origin, NULL);
+        else DecList(child->nextSibling, fieldType, origin, type);
     }
     else 
     {
@@ -461,13 +521,13 @@ void Def(TreeNode* ptr, Type type, Origin origin)
     }
 }
 
-void DecList(TreeNode* ptr, Type type, Origin origin)
+void DecList(TreeNode* ptr, Type type, Origin origin, Type structSpecifier)
 {
     TreeNode* child = ptr->firstChild;
     TreeNode* nextChild = child->nextSibling;
     if(strcmp(child->m_identifier,"Dec") == 0)
     {
-        Dec(child, type, origin);
+        Dec(child, type, origin, structSpecifier);
         if(nextChild == NULL)
         {
             return;
@@ -475,7 +535,7 @@ void DecList(TreeNode* ptr, Type type, Origin origin)
         else if(strcmp(nextChild->m_identifier,"COMMA") == 0)
         {
             nextChild = nextChild->nextSibling;
-            DecList(nextChild, type, origin);
+            DecList(nextChild, type, origin, structSpecifier);
         }
         else 
         {
@@ -488,13 +548,13 @@ void DecList(TreeNode* ptr, Type type, Origin origin)
     }
 }
 
-void Dec(TreeNode* ptr, Type type, Origin origin)
+void Dec(TreeNode* ptr, Type type, Origin origin, Type structSpecifier)
 {
     TreeNode* child = ptr->firstChild;
     TreeNode* nextChild = child->nextSibling;
     if(strcmp(child->m_identifier,"VarDec") == 0)
     {
-        VarDec(child,type,origin);
+        VarDec(child,type,origin,structSpecifier);
         if(nextChild == NULL)
         {
 
