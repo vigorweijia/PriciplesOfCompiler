@@ -256,7 +256,7 @@ void VarDec(TreeNode* ptr, Type type, Origin origin, Type structSpecifier)
                 field->type = type;
                 if(HashTableInsert(field->name,type) == 0)
                 {
-                    printf("Error type at Line %d: Redefined varialble \"%s\".\n",child->m_lineno,child->idName);
+                    printf("Error type 3 at Line %d: Redefined varialble \"%s\".\n",child->m_lineno,child->idName);
                 }
 
                 if(structSpecifier->function.params == NULL)
@@ -283,24 +283,11 @@ void VarDec(TreeNode* ptr, Type type, Origin origin, Type structSpecifier)
     else if(strcmp(child->m_identifier,"VarDec") == 0)
     {
         //VarDec -> VarDec LB INT RB
-        switch (origin)
-        {
-        case O_CompSt:
-        case O_ExtDecList:
-        case O_StructSpecifier:
-        case O_FunDec:
-            {
-                Type arrayType = (Type)malloc(sizeof(Type_));
-                arrayType->kind = ARRAY;
-                arrayType->array.elem = type;
-                arrayType->array.size = child->nextSibling->nextSibling->intValue;
-                VarDec(child,arrayType,origin,structSpecifier);
-            }
-            break;        
-        default:
-            assert(0);
-            break;
-        }
+        Type arrayType = (Type)malloc(sizeof(Type_));
+        arrayType->kind = ARRAY;
+        arrayType->array.elem = type;
+        arrayType->array.size = child->nextSibling->nextSibling->intValue;
+        VarDec(child,arrayType,origin,structSpecifier);
     }
     else
     {
@@ -873,4 +860,48 @@ SyntaxType GetSyntaxType(const char* str)
 void PrintError(int errorno, int lineno, const char* msg)
 {
     printf("Error type %d at Line %d: %s\n",errorno,lineno,msg);
+}
+
+int TypeEqual(Type typeA, Type typeB)
+{
+    if(typeA->kind != typeB->kind) return 0;
+    if(typeA->kind == FUNCTION) assert(0);
+    if(typeA->kind == STRUCTURE) return StructTypeEqual(typeA, typeB);
+    if(typeA->kind == ARRAY) return ArrayTypeEqual(typeA, typeB);
+    if(typeA->basic == typeB->basic) return 1;
+    else return 0;
+}
+
+int StructTypeEqual(Type typeA, Type typeB)
+{
+    assert(typeA->kind == STRUCTURE && typeB->kind == STRUCTURE);
+    FieldList tempA = typeA->structure;
+    FieldList tempB = typeB->structure;
+    while (tempA != NULL && tempB != NULL)
+    {
+        if(TypeEqual(tempA->type,tempB->type) == 0) return 0;
+        tempA = tempA->next;
+        tempB = tempB->next;
+    }
+    if(tempA == NULL && tempB != NULL) return 0;
+    if(tempA != NULL && tempB == NULL) return 0;
+    return 1;
+}
+
+int ArrayTypeEqual(Type typeA, Type typeB)
+{
+    if(typeA->kind != typeB->kind) return 0;
+    if(typeA->kind == BASIC)
+    {
+        return (typeA->basic == typeB->basic);
+    }
+    else if(typeA->kind == ARRAY)
+    {
+        if(typeA->array.size != typeB->array.size) return 0;
+        else return ArrayTypeEqual(typeA->array.elem, typeB->array.elem);
+    }
+    else
+    {
+        assert(0);
+    }
 }

@@ -102,5 +102,6 @@ void PrintError(int errorno, int lineno, const char* msg);
 
 int TypeEqual(Type typeA, Type typeB);
 int StructTypeEqual(Type typeA, Type typeB);
+int ArrayTypeEqual(Type typeA, Type typeB);
 
 #endif
