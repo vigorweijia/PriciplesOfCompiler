@@ -94,7 +94,7 @@ void DecList(TreeNode *ptr, Type type, Origin origin);
 void Dec(TreeNode *ptr, Type type, Origin origin);
 
 Type Exp(TreeNode *ptr);
-void Args(TreeNode *ptr);
+void Args(TreeNode *ptr, FieldList param);
 
 SyntaxType GetSyntaxType(const char* identifier);
 

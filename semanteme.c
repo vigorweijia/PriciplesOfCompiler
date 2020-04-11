@@ -407,7 +407,7 @@ void Stmt(TreeNode* ptr, Type rtnType)
             //Stmt -> IF LP Exp RP Stmt
             return;
         }
-        else if(strcmp(elseChild,"ELSE") == 0)
+        else if(strcmp(elseChild->m_identifier,"ELSE") == 0)
         {
             //Stmt -> IF LP Exp RP Stmt ELSE Stmt
             elseChild = elseChild->nextSibling;
@@ -522,21 +522,145 @@ Type Exp(TreeNode* ptr)
     if(strcmp(child->m_identifier,"Exp") == 0)
     {
         TreeNode* expA = child;
-        TreeNode* expB = expA->nextSibling->nextSibling;
         TreeNode* op = expA->nextSibling;
-        
+        TreeNode* expB = expA->nextSibling->nextSibling;
+        if(strcmp(op->m_identifier,"LB") == 0)
+        {
+            Type typeA = Exp(expA);
+            Type typeB = Exp(expB);
+            int flag = 0;
+            if(typeA->kind != ARRAY)
+            {
+                flag = 1;
+                printf("Error type 10 at Line %d: \"%s\" is not an array.\n",expA->m_lineno,expA->idName);
+            }
+            if(!(typeB->kind == BASIC && typeB->basic == B_INT))
+            {
+                flag = 1;
+                printf("Error type 12 at Line %d: Element in [] is not an integer.\n",expB->m_lineno);
+            }
+            if(flag == 1) return NULL;
+            else return typeA->array.elem;
+        }
+        else if(strcmp(op->m_identifier,"DOT") == 0)
+        {
+            Type typeA = Exp(expA);
+            if(typeA->kind != STRUCTURE)
+            {
+                printf("Error type 13 at Line %d: Illegal use of \'.\'\n",expA->m_lineno);
+                return NULL;
+            }
+            //TODO: find in structure
+        }
+        else 
+        {
+            Type typeA = Exp(expA);
+            Type typeB = Exp(expB);
+            if(strcmp(op->m_identifier,"ASSIGNOP") == 0)
+            {
+                //Exp -> Exp ASSIGNOP Exp
+                TreeNode* expAChild = expA->firstChild;
+                if( !(strcmp(expAChild->m_identifier,"ID") == 0
+                    || strcmp(expAChild->m_identifier,"Exp") == 0 && strcmp(expAChild->nextSibling->m_identifier,"DOT") == 0
+                    || strcmp(expAChild->m_identifier,"Exp") == 0 && strcmp(expAChild->nextSibling->m_identifier,"LB") == 0) 
+                )
+                {
+                    printf("Error Type 6 at Line %d: The left-hand side of an assignment must be a variable.\n",expA->m_lineno);
+                    return NULL;
+                }
+                if(TypeEqual(typeA,typeB) == 0)
+                {
+                    printf("Error Type 5 at Line %d: Type mismatched for assignment.\n",child->m_lineno);
+                    return NULL;
+                }
+            }
+            else if(strcmp(op->m_identifier,"AND") == 0)
+            {
+                if(!(typeA->kind == BASIC && typeB->kind == BASIC && typeA->basic == B_INT && typeB->basic == B_INT))
+                {
+                    printf("Error type 7 at Line %d: \'&&\' Type mismatched for operands.\n", expA->m_lineno);
+                    return NULL;
+                }
+            }
+            else if(strcmp(op->m_identifier,"OR") == 0)
+            {
+                if(!(typeA->kind == BASIC && typeB->kind == BASIC && typeA->basic == B_INT && typeB->basic == B_INT))
+                {
+                    printf("Error type 7 at Line %d: \'||\' Type mismatched for operands.\n", expA->m_lineno);
+                    return NULL;
+                }
+            }
+            else if(strcmp(op->m_identifier,"RELOP") == 0)
+            {
+                if(!(TypeEqual(typeA,typeB) && typeA->kind == BASIC && typeB->kind == BASIC))
+                {
+                    printf("Error type 7 at Line %d: \'RELOP\' Type mismatched for operands.\n", expA->m_lineno);
+                    return NULL;
+                }
+            }
+            else if(strcmp(op->m_identifier,"PLUS") == 0)
+            {
+                if(!(TypeEqual(typeA,typeB) && typeA->kind == BASIC && typeB->kind == BASIC))
+                {
+                    printf("Error type 7 at Line %d: \'+\' Type mismatched for operands.\n", expA->m_lineno);
+                    return NULL;
+                }
+            }
+            else if(strcmp(op->m_identifier,"MINUS") == 0)
+            {
+                if(!(TypeEqual(typeA,typeB) && typeA->kind == BASIC && typeB->kind == BASIC))
+                {
+                    printf("Error type 7 at Line %d: \'-\' Type mismatched for operands.\n", expA->m_lineno);
+                    return NULL;
+                }
+            }
+            else if(strcmp(op->m_identifier,"STAR") == 0)
+            {
+                if(!(TypeEqual(typeA,typeB) && typeA->kind == BASIC && typeB->kind == BASIC))
+                {
+                    printf("Error type 7 at Line %d: \'*\' Type mismatched for operands.\n", expA->m_lineno);
+                    return NULL;
+                }
+            }
+            else if(strcmp(op->m_identifier,"DIV") == 0)
+            {
+                if(!(TypeEqual(typeA,typeB) && typeA->kind == BASIC && typeB->kind == BASIC))
+                {
+                    printf("Error type 7 at Line %d: \'\\\' Type mismatched for operands.\n", expA->m_lineno);
+                    return NULL;
+                }
+            }
+            else 
+            {
+                assert(0);
+            }
+        }
     }
     else if(strcmp(child->m_identifier,"LP") == 0)
     {
-
+        //Exp -> LP EXP RP
     }
     else if(strcmp(child->m_identifier,"MINUS") == 0)
     {
-
+        //Exp -> MINUS Exp
+        Type childExpType = Exp(nextChild);
+        if(childExpType->kind != BASIC)
+        {
+            printf("Error type 7 at Line %d: Operator \'-\' mismatched for operands.\n",nextChild->m_lineno);
+            return NULL;
+        }
+        return childExpType;
     }
     else if(strcmp(child->m_identifier,"NOT") == 0)
     {
-
+        //Exp -> NOT Exp
+        Type childExpType = Exp(nextChild);
+        if(childExpType->kind != BASIC || (childExpType->kind == BASIC && childExpType->basic != B_INT))
+        {
+            printf("Error type 7 at Line %d: Operator \'!\' mismatched for operands.\n",nextChild->m_lineno);
+            return NULL;
+        }
+        return childExpType;
     }
     else if(strcmp(child->m_identifier,"ID") == 0)
     {
@@ -546,20 +670,40 @@ Type Exp(TreeNode* ptr)
             Symbol symbol = HashTableFind(child->m_identifier);
             if(symbol == NULL)
             {
-
+                printf("Error type 1 at Line %d: Undefined variable \"%s\".\n",child->m_lineno,child->idName);
+                return NULL;
             }
+            return symbol->type;
         }
         else
         {
             TreeNode* args = nextChild->nextSibling;
+            Symbol funSymbol = HashTableFind(child->idName);
+            if(funSymbol == NULL)
+            {
+                printf("Error type 2 at Line %d: Undefined function \"%s\".\n",child->m_lineno,child->idName);
+                return NULL;
+            }
+            if(funSymbol->type->kind != FUNCTION)
+            {
+                printf("Error type 11 at Line %d: \"%s\" is not a function.\n",child->m_lineno,child->idName);
+                return NULL;
+            }
             if(strcmp(args->m_identifier,"Args") == 0)
             {
                 //Exp -> ID LP Args RP
-
+                Args(args, funSymbol->type->function.params);
+                return funSymbol->type->function.rtnType;
             }
             else if(strcmp(args->m_identifier,"RP") == 0)
             {
-                //Exp -> ID LP Args RP
+                //Exp -> ID LP RP
+                if(funSymbol->type->function.cnt != 0)
+                {
+                    printf("Error type 9 at Line %d: Function \"%s\" is not applicable for arguments.\n",child->m_lineno,child->idName);
+                    return funSymbol->type->function.rtnType;
+                }
+                return funSymbol->type->function.rtnType;
             }
             else
             {
@@ -582,6 +726,49 @@ Type Exp(TreeNode* ptr)
         return type;
     }
     else 
+    {
+        assert(0);
+    }
+    assert(0);
+}
+
+void Args(TreeNode* ptr, FieldList param)
+{
+    if(ptr == NULL && param == NULL)
+    {
+        return;
+    }
+    TreeNode* child = ptr->firstChild;
+    TreeNode* nextChild = child->nextSibling;
+    if(strcmp(child->m_identifier,"Exp") == 0)
+    {
+        Type type = Exp(child);
+        if(TypeEqual(type,param->type) == 0)
+        {
+            printf("Error type 9 at Line %d: Function parameter's type dismatches.\n",ptr->m_lineno);
+            return;
+        }
+        if(nextChild == NULL)
+        {
+            //Args -> Exp
+            return;
+        }
+        else if(strcmp(nextChild->m_identifier,"COMMA") == 0)
+        {
+            nextChild = nextChild->nextSibling;
+            if((nextChild == NULL && param->next != NULL) || (nextChild != NULL && param->next == NULL))
+            {
+                printf("Error type 9 at Line %d: Function parameter's amount dismatches.\n",ptr->m_lineno);
+                return;
+            }
+            Args(nextChild,param->next);
+        }
+        else
+        {
+            assert(0);
+        }
+    }
+    else
     {
         assert(0);
     }
