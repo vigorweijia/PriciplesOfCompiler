@@ -79,25 +79,28 @@ void StructSpecifier(TreeNode *ptr, Type type);
 void OptTag(TreeNode *ptr, Type type);
 void Tag(TreeNode *ptr, Type type);
 
-void VarDec(TreeNode *ptr, Type type);
-void FunDec(TreeNode *ptr);
-void VarList(TreeNode *ptr);
-void ParamDec(TreeNode *ptr);
+void VarDec(TreeNode *ptr, Type type, Origin origin);
+void FunDec(TreeNode *ptr, Type type);
+void VarList(TreeNode *ptr, Type type);
+void ParamDec(TreeNode *ptr, Type type);
 
-void CompSt(TreeNode *ptr);
-void StmtList(TreeNode *ptr);
-void Stmt(TreeNode *ptr);
+void CompSt(TreeNode *ptr, Type rtnType);
+void StmtList(TreeNode *ptr, Type rtnType);
+void Stmt(TreeNode *ptr, Type rtnType);
 
-void DefList(TreeNode *ptr, Type type);
-void Def(TreeNode *ptr);
-void DecList(TreeNode *ptr);
-void Dec(TreeNode *ptr);
+void DefList(TreeNode *ptr, Type type, Origin origin);
+void Def(TreeNode *ptr, Type type, Origin origin);
+void DecList(TreeNode *ptr, Type type, Origin origin);
+void Dec(TreeNode *ptr, Type type, Origin origin);
 
-void Exp(TreeNode *ptr);
+Type Exp(TreeNode *ptr);
 void Args(TreeNode *ptr);
 
 SyntaxType GetSyntaxType(const char* identifier);
 
 void PrintError(int errorno, int lineno, const char* msg);
+
+int TypeEqual(Type typeA, Type typeB);
+int StructTypeEqual(Type typeA, Type typeB);
 
 #endif

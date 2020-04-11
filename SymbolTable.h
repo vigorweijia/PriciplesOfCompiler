@@ -26,6 +26,8 @@ typedef struct FieldList_
     FieldList next;
 }FieldList_;
 
+typedef enum{O_UNKNOWN,O_ExtDecList,O_StructSpecifier,O_FunDec,O_CompSt}Origin;
+
 Symbol gSymbolTable[HASH_TABLE_SIZE];
 
 void HashTableInit();
