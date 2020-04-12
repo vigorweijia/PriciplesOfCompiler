@@ -2,7 +2,6 @@
 #define __SYMBOLTABLE_H__
 
 #define HASH_TABLE_SIZE 0x3fff
-#define NAME_LENTH 128
 
 typedef struct Type_* Type;
 typedef struct FieldList_* FieldList;
