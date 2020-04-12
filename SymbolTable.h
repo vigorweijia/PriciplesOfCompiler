@@ -10,7 +10,7 @@ typedef struct FieldList_* Symbol;
 
 typedef struct Type_
 {
-    enum {UNKNOWN, BASIC, ARRAY, STRUCTURE, FUNCTION} kind;
+    enum {UNKNOWN, BASIC, ARRAY, STRUCTURE, FUNCTION, K_ERROR} kind;
     union{
         enum {B_UNKNOWN, B_INT, B_FLOAT} basic;
         struct {Type elem; int size;} array;
@@ -18,6 +18,8 @@ typedef struct Type_
         struct {Type rtnType; FieldList params; int cnt;} function;
     };
 }Type_;
+
+Type gError;
 
 typedef struct FieldList_
 {
@@ -34,6 +36,7 @@ void HashTableInit();
 int HashTableInsert(char* name, Type type);
 Symbol HashTableFind(const char* name);
 Symbol HashTableFindMemberSymbol(const char* name, Symbol symbol);
+Symbol HashTableFindStructureMember(const char* name, Type type);
 
 unsigned int HashPjw(const char* name);
 

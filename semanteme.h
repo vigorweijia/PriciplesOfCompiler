@@ -4,6 +4,8 @@
 #include "tree.h"
 #include "SymbolTable.h"
 
+//#define WDEBUG 1
+
 typedef enum{
     T_EMPTY,
     
@@ -99,5 +101,8 @@ void Args(TreeNode *ptr, FieldList param);
 int TypeEqual(Type typeA, Type typeB);
 int StructTypeEqual(Type typeA, Type typeB);
 int ArrayTypeEqual(Type typeA, Type typeB);
+
+void SematicDebug(TreeNode* ptr);
+void wDebug(const char* msg);
 
 #endif

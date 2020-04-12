@@ -8,14 +8,18 @@
 //High-level Definitions
 void Program(TreeNode *ptr)
 {
+    HashTableInit(); //!!!!!!!!!!!!!!!!!!!!!!!
+    SematicDebug(ptr);
     TreeNode* child = ptr->firstChild;
-    if(child == NULL) return;
+    if(child == NULL) return; //ExtDefList is null
     else if(strcmp(child->m_identifier, "ExtDefList") == 0) ExtDefList(child);
     else assert(0);
 }
 
 void ExtDefList(TreeNode *ptr)
-{
+{ 
+    if(ptr == NULL) return;
+    SematicDebug(ptr);
     TreeNode* child = ptr->firstChild;
 
     if(child == NULL) 
@@ -35,6 +39,7 @@ void ExtDefList(TreeNode *ptr)
 
 void ExtDef(TreeNode *ptr)
 {
+    SematicDebug(ptr);
     assert(ptr != NULL);
 
     //ExtDef -> Specifier ...
@@ -55,11 +60,12 @@ void ExtDef(TreeNode *ptr)
     else if(strcmp(child->m_identifier, "FunDec") == 0)
     {
         //ExtDef -> Specifier FunDec CompSt
-        Type functionType = (Type)malloc(sizeof(Type_));
-        functionType->kind = FUNCTION;
-        functionType->function.rtnType = type;
-        FunDec(child, functionType);
-        CompSt(child->nextSibling, functionType->function.rtnType);
+        //Type functionType = (Type)malloc(sizeof(Type_));
+        //functionType->kind = FUNCTION;
+        //functionType->function.rtnType = type;
+        //printf("rtnType:%d\n",functionType->function.rtnType->kind);
+        FunDec(child, type);
+        CompSt(child->nextSibling, type);
     }
     else
     {
@@ -69,6 +75,7 @@ void ExtDef(TreeNode *ptr)
 
 void ExtDecList(TreeNode* ptr, Type type)
 {
+    SematicDebug(ptr);
     TreeNode* child = ptr->firstChild;
     if(strcmp(child->m_identifier,"VarDec") == 0)
     {
@@ -98,6 +105,7 @@ void ExtDecList(TreeNode* ptr, Type type)
 
 Type Specifier(TreeNode* ptr)
 {
+    SematicDebug(ptr);
     Type type = (Type)malloc(sizeof(Type_));
     TreeNode* child = ptr->firstChild;
     if(strcmp(child->m_identifier,"TYPE") == 0)
@@ -130,6 +138,7 @@ Type Specifier(TreeNode* ptr)
 
 void StructSpecifier(TreeNode* ptr, Type type)
 {
+    SematicDebug(ptr);
     TreeNode* child = ptr->firstChild;
     if(strcmp(child->m_identifier,"STRUCT") != 0)
     {
@@ -137,12 +146,23 @@ void StructSpecifier(TreeNode* ptr, Type type)
     }
 
     child = child->nextSibling;
-    if(strcmp(child->m_identifier,"OptTag") == 0)
+    if(strcmp(child->m_identifier,"LC") == 0)
+    {
+        //OptTag is null
+        //StructSpecifier -> STRUCT LC DefList RC
+        TreeNode* childDefList = child->nextSibling->nextSibling;
+        DefList(childDefList, type, O_StructSpecifier);
+    }
+    else if(strcmp(child->m_identifier,"OptTag") == 0)
     {
         //StructSpecifier -> STRUCT OptTag LC DefList RC
         TreeNode* childDefList = child->nextSibling->nextSibling;
         OptTag(child, type);
-        DefList(childDefList, type, O_StructSpecifier);
+        if(strcmp(childDefList->m_identifier,"DefList") == 0)
+        {
+            //in case DefList is null
+            DefList(childDefList, type, O_StructSpecifier);
+        }
     }
     else if(strcmp(child->m_identifier,"Tag") == 0)
     {
@@ -157,6 +177,8 @@ void StructSpecifier(TreeNode* ptr, Type type)
 
 void OptTag(TreeNode* ptr, Type type)
 {
+    if(ptr == NULL) return;
+    SematicDebug(ptr);
     TreeNode* child = ptr->firstChild;
     if(child == NULL)
     {
@@ -165,7 +187,7 @@ void OptTag(TreeNode* ptr, Type type)
     }
     else if(strcmp(child->m_identifier, "ID") == 0)
     {
-        Symbol symbol = HashTableFind(child->m_identifier);
+        Symbol symbol = HashTableFind(child->idName);
         if(symbol == NULL)
         {
             if(HashTableInsert(child->idName,type) == 0)
@@ -186,6 +208,7 @@ void OptTag(TreeNode* ptr, Type type)
 
 void Tag(TreeNode* ptr, Type type)
 {
+    SematicDebug(ptr);
     ptr = ptr->firstChild;
     if(strcmp(ptr->m_identifier, "ID") == 0)
     {
@@ -208,6 +231,7 @@ void Tag(TreeNode* ptr, Type type)
 
 void VarDec(TreeNode* ptr, Type type, Origin origin, Type structSpecifier)
 {
+    SematicDebug(ptr);
     TreeNode* child = ptr->firstChild;
     if(strcmp(child->m_identifier,"ID") == 0)
     {
@@ -224,18 +248,20 @@ void VarDec(TreeNode* ptr, Type type, Origin origin, Type structSpecifier)
             {
                 printf("Error type 3 at Line %d: (I)Redefined variable \"%s\".\n",child->m_lineno,child->idName);
             }
+            //printf("insert secc\n");
             break;
         case O_StructSpecifier:
             {
                 FieldList field = (FieldList)malloc(sizeof(FieldList_));
+                //pay attention to structure equal
+                if(!(HashTableFind(child->idName) == NULL && HashTableFindStructureMember(child->idName,structSpecifier) == NULL))
+                {
+                    printf("Error type 15 at Line %d: Redefined field \"%s\".\n",child->m_lineno,child->idName);
+                    return;
+                }
                 field->name = child->idName;
                 field->next = NULL;
                 field->type = type;
-                //pay attention to structure equal
-                if(HashTableFind(field->name) != NULL)
-                {
-                    printf("Error type 15 at Line %d: Redefined field \"%s\".\n",child->m_lineno,child->idName);
-                }
 
                 if(structSpecifier->structure == NULL)
                 {
@@ -261,6 +287,10 @@ void VarDec(TreeNode* ptr, Type type, Origin origin, Type structSpecifier)
                 if(HashTableFind(field->name) != NULL)
                 {
                     printf("Error type 3 at Line %d: Redefined varialble \"%s\".\n",child->m_lineno,child->idName);
+                }
+                else if(HashTableInsert(field->name, type) == 0)
+                {
+                    printf("Error type 3 at Line %d: (I)Redefined varialble \"%s\".\n",child->m_lineno,child->idName);
                 }
 
                 if(structSpecifier->function.params == NULL)
@@ -301,6 +331,7 @@ void VarDec(TreeNode* ptr, Type type, Origin origin, Type structSpecifier)
 
 void FunDec(TreeNode* ptr, Type type)
 {
+    SematicDebug(ptr);
     TreeNode* child = ptr->firstChild;
     TreeNode* nextChild = child->nextSibling->nextSibling;
     if(strcmp(nextChild->m_identifier,"VarList") == 0)
@@ -312,7 +343,7 @@ void FunDec(TreeNode* ptr, Type type)
         fundecSpecifier->function.params = NULL;
         fundecSpecifier->function.cnt = 0;
         VarList(nextChild, type, O_FunDec, fundecSpecifier);
-        if(HashTableInsert(child->idName, type) == 0)
+        if(HashTableInsert(child->idName, fundecSpecifier) == 0)
         {
             printf("Error type 4 at Line %d: Redefined function \"%s\".\n",child->m_lineno,child->idName);
         }
@@ -325,7 +356,7 @@ void FunDec(TreeNode* ptr, Type type)
         fundecSpecifier->function.rtnType = type;
         fundecSpecifier->function.params = NULL;
         fundecSpecifier->function.cnt = 0;
-        if(HashTableInsert(child->idName, type) == 0)
+        if(HashTableInsert(child->idName, fundecSpecifier) == 0)
         {
             printf("Error type 4 at Line %d: Redefined function \"%s\".\n",child->m_lineno,child->idName);
         }
@@ -338,6 +369,7 @@ void FunDec(TreeNode* ptr, Type type)
 
 void VarList(TreeNode* ptr, Type type, Origin origin, Type fundecSpecifier)
 {
+    SematicDebug(ptr);
     assert(origin == O_FunDec);
     TreeNode* child = ptr->firstChild;
     if(strcmp(child->m_identifier,"ParamDec") == 0)
@@ -359,6 +391,7 @@ void VarList(TreeNode* ptr, Type type, Origin origin, Type fundecSpecifier)
         {
             assert(0);
         }
+        //printf("paramcnt at varlist:%d\n",fundecSpecifier->function.cnt);
     }
     else
     {
@@ -368,6 +401,7 @@ void VarList(TreeNode* ptr, Type type, Origin origin, Type fundecSpecifier)
 
 void ParamDec(TreeNode* ptr, Type type, Origin origin, Type fundecSpecifier)
 {
+    SematicDebug(ptr);
     assert(origin == O_FunDec);
     TreeNode* child = ptr->firstChild;
     if(strcmp(child->m_identifier,"Specifier") == 0)
@@ -375,6 +409,7 @@ void ParamDec(TreeNode* ptr, Type type, Origin origin, Type fundecSpecifier)
         //ParamDec -> Specifier VarDec
         Type specifier = Specifier(child);
         VarDec(child->nextSibling, specifier, origin, fundecSpecifier);
+        //printf("paramcnt:%d\n",fundecSpecifier->function.cnt);
     }
     else
     {
@@ -384,12 +419,33 @@ void ParamDec(TreeNode* ptr, Type type, Origin origin, Type fundecSpecifier)
 
 void CompSt(TreeNode* ptr, Type rtnType)
 {
+    SematicDebug(ptr);
     TreeNode* child = ptr->firstChild;
+    TreeNode* nextChild = child->nextSibling;
     if(strcmp(child->m_identifier,"LC") == 0)
     {
         //CompSt -> LC DefList StmtList RC
-        DefList(child->nextSibling, NULL, O_CompSt);
-        StmtList(child->nextSibling->nextSibling, rtnType);
+        if(strcmp(nextChild->m_identifier,"RC") == 0)
+        {
+            //Both DefList and StmtList is null
+            return;
+        }
+        else if(strcmp(nextChild->m_identifier,"StmtList") == 0)
+        {
+            //DefList is null
+            StmtList(child->nextSibling, rtnType);
+        }
+        else if(strcmp(nextChild->nextSibling->m_identifier,"RC") == 0)
+        {
+            //StmtList is null
+            DefList(child->nextSibling, NULL, O_CompSt);
+        }
+        else 
+        {
+            DefList(child->nextSibling, NULL, O_CompSt);
+            StmtList(child->nextSibling->nextSibling, rtnType);
+        }
+        wDebug("CompSt succ");
     }
     else
     {
@@ -399,6 +455,8 @@ void CompSt(TreeNode* ptr, Type rtnType)
 
 void StmtList(TreeNode* ptr, Type rtnType)
 {
+    if(ptr == NULL) return;
+    SematicDebug(ptr);
     TreeNode* child = ptr->firstChild;
     if(child == NULL)
     {
@@ -410,6 +468,7 @@ void StmtList(TreeNode* ptr, Type rtnType)
         //StmtList -> Stmt StmtList
         Stmt(child, rtnType);
         StmtList(child->nextSibling, rtnType);
+        wDebug("StmtList succ");
     }
     else
     {
@@ -419,6 +478,7 @@ void StmtList(TreeNode* ptr, Type rtnType)
 
 void Stmt(TreeNode* ptr, Type rtnType)
 {   
+    SematicDebug(ptr);
     TreeNode* child = ptr->firstChild;
     TreeNode* nextChild = child->nextSibling;
     Type expType = NULL;
@@ -426,11 +486,12 @@ void Stmt(TreeNode* ptr, Type rtnType)
     {
         //Stmt -> Exp SEMI
         expType = Exp(child);
+        wDebug("Stmt succ");
     }
     else if(strcmp(child->m_identifier,"CompSt") == 0)
     {
         //Stmt -> CompSt
-        CompSt(ptr, rtnType);
+        CompSt(child, rtnType);
     }
     else if(strcmp(child->m_identifier,"RETURN") == 0)
     {
@@ -476,6 +537,8 @@ void Stmt(TreeNode* ptr, Type rtnType)
 
 void DefList(TreeNode* ptr, Type type, Origin origin)
 {
+    if(ptr == NULL) return;
+    SematicDebug(ptr);
     assert(origin == O_CompSt || origin == O_StructSpecifier);
     TreeNode* child = ptr->firstChild;
     if(child == NULL)
@@ -487,7 +550,9 @@ void DefList(TreeNode* ptr, Type type, Origin origin)
     {
         //DefList -> Specifier decList SEMI
         Def(child, type, origin);
+        wDebug("Def succ at DefList");
         DefList(child->nextSibling, type, origin);
+        wDebug("DefList yes");
     }
     else 
     {
@@ -497,6 +562,7 @@ void DefList(TreeNode* ptr, Type type, Origin origin)
 
 void Def(TreeNode* ptr, Type type, Origin origin)
 {
+    SematicDebug(ptr);
     assert(origin == O_CompSt || origin == O_StructSpecifier);
     TreeNode* child = ptr->firstChild;
     if(strcmp(child->m_identifier,"Specifier") == 0)
@@ -505,6 +571,7 @@ void Def(TreeNode* ptr, Type type, Origin origin)
         Type fieldType = Specifier(child);
         if(origin == O_CompSt) DecList(child->nextSibling, fieldType, origin, NULL);
         else DecList(child->nextSibling, fieldType, origin, type);
+        wDebug("Def yes");
     }
     else 
     {
@@ -514,6 +581,7 @@ void Def(TreeNode* ptr, Type type, Origin origin)
 
 void DecList(TreeNode* ptr, Type type, Origin origin, Type structSpecifier)
 {
+    SematicDebug(ptr);
     TreeNode* child = ptr->firstChild;
     TreeNode* nextChild = child->nextSibling;
     if(strcmp(child->m_identifier,"Dec") == 0)
@@ -521,6 +589,7 @@ void DecList(TreeNode* ptr, Type type, Origin origin, Type structSpecifier)
         Dec(child, type, origin, structSpecifier);
         if(nextChild == NULL)
         {
+            wDebug("DecList yes null");
             return;
         }
         else if(strcmp(nextChild->m_identifier,"COMMA") == 0)
@@ -532,6 +601,7 @@ void DecList(TreeNode* ptr, Type type, Origin origin, Type structSpecifier)
         {
             assert(0);
         }
+        wDebug("DecList yes");
     }
     else
     {
@@ -541,6 +611,7 @@ void DecList(TreeNode* ptr, Type type, Origin origin, Type structSpecifier)
 
 void Dec(TreeNode* ptr, Type type, Origin origin, Type structSpecifier)
 {
+    SematicDebug(ptr);
     TreeNode* child = ptr->firstChild;
     TreeNode* nextChild = child->nextSibling;
     if(strcmp(child->m_identifier,"VarDec") == 0)
@@ -553,11 +624,23 @@ void Dec(TreeNode* ptr, Type type, Origin origin, Type structSpecifier)
         else if(strcmp(nextChild->m_identifier,"ASSIGNOP") == 0)
         {
             //Dev -> VarDec ASSIGNOP Exp
+            if(origin == O_StructSpecifier)
+            {
+                printf("Error type 15 at Line %d: Invalid definition in structure.\n",child->m_lineno);
+                return;
+            }
+            Type expType = Exp(nextChild->nextSibling);
+            if(TypeEqual(type,expType) == 0)
+            {
+                printf("Error type 5 at Line %d: Type dismatched for assignment.\n",child->m_lineno);
+                return;
+            }
         }
         else
         {
             assert(0);
         }
+        //printf("dec yes\n");
     }
     else
     {
@@ -567,6 +650,7 @@ void Dec(TreeNode* ptr, Type type, Origin origin, Type structSpecifier)
 
 Type Exp(TreeNode* ptr)
 {
+    SematicDebug(ptr);
     TreeNode* child = ptr->firstChild;
     TreeNode* nextChild = child->nextSibling;
     Type type = (Type)malloc(sizeof(Type_));
@@ -583,47 +667,63 @@ Type Exp(TreeNode* ptr)
             if(typeA->kind != ARRAY)
             {
                 flag = 1;
-                printf("Error type 10 at Line %d: \"%s\" is not an array.\n",expA->m_lineno,expA->idName);
+                printf("Error type 10 at Line %d: Variable before [] is not an array.\n",expA->m_lineno);
             }
             if(!(typeB->kind == BASIC && typeB->basic == B_INT))
             {
                 flag = 1;
                 printf("Error type 12 at Line %d: Element in [] is not an integer.\n",expB->m_lineno);
             }
-            if(flag == 1) return NULL;
-            else return typeA->array.elem;
+            if(flag == 1) 
+            {
+                wDebug("return gError");
+                if(gError == NULL) wDebug("gError is null");
+                return gError;
+            }
+            else 
+            {
+                return typeA->array.elem;
+            }
         }
         else if(strcmp(op->m_identifier,"DOT") == 0)
         {
             Type typeA = Exp(expA);
+            if(typeA == NULL) wDebug("NULL Detected");
             if(typeA->kind != STRUCTURE)
             {
                 printf("Error type 13 at Line %d: Illegal use of \'.\'\n",expA->m_lineno);
-                return NULL;
+                return gError;
             }
             //TODO: find in structure, error 14
-
+            Symbol memberSymbol = HashTableFindStructureMember(expB->idName, typeA);
+            if(memberSymbol == NULL)
+            {
+                printf("Error type 14 at Line %d: Non-existent field \"%s\".\n",expB->m_lineno,expB->idName);
+                return gError;
+            }
+            return memberSymbol->type;
         }
         else 
         {
             Type typeA = Exp(expA);
             Type typeB = Exp(expB);
+            wDebug("Get type succ");
             if(strcmp(op->m_identifier,"ASSIGNOP") == 0)
             {
                 //Exp -> Exp ASSIGNOP Exp
                 TreeNode* expAChild = expA->firstChild;
-                if( !(strcmp(expAChild->m_identifier,"ID") == 0
+                if( !(strcmp(expAChild->m_identifier,"ID") == 0 && expAChild->nextSibling == NULL
                     || strcmp(expAChild->m_identifier,"Exp") == 0 && strcmp(expAChild->nextSibling->m_identifier,"DOT") == 0
                     || strcmp(expAChild->m_identifier,"Exp") == 0 && strcmp(expAChild->nextSibling->m_identifier,"LB") == 0) 
                 )
                 {
-                    printf("Error Type 6 at Line %d: The left-hand side of an assignment must be a variable.\n",expA->m_lineno);
-                    return NULL;
+                    printf("Error type 6 at Line %d: The left-hand side of an assignment must be a variable.\n",expA->m_lineno);
+                    return gError;
                 }
                 if(TypeEqual(typeA,typeB) == 0)
                 {
-                    printf("Error Type 5 at Line %d: Type mismatched for assignment.\n",child->m_lineno);
-                    return NULL;
+                    printf("Error type 5 at Line %d: Type mismatched for assignment.\n",child->m_lineno);
+                    return gError;
                 }
             }
             else if(strcmp(op->m_identifier,"AND") == 0)
@@ -631,7 +731,7 @@ Type Exp(TreeNode* ptr)
                 if(!(typeA->kind == BASIC && typeB->kind == BASIC && typeA->basic == B_INT && typeB->basic == B_INT))
                 {
                     printf("Error type 7 at Line %d: \'&&\' Type mismatched for operands.\n", expA->m_lineno);
-                    return NULL;
+                    return gError;
                 }
             }
             else if(strcmp(op->m_identifier,"OR") == 0)
@@ -639,31 +739,34 @@ Type Exp(TreeNode* ptr)
                 if(!(typeA->kind == BASIC && typeB->kind == BASIC && typeA->basic == B_INT && typeB->basic == B_INT))
                 {
                     printf("Error type 7 at Line %d: \'||\' Type mismatched for operands.\n", expA->m_lineno);
-                    return NULL;
+                    return gError;
                 }
             }
             else if(strcmp(op->m_identifier,"RELOP") == 0)
             {
+                //printf("typeA:%d typeB:%d\n",typeA->kind,typeB->kind);
                 if(!(TypeEqual(typeA,typeB) && typeA->kind == BASIC && typeB->kind == BASIC))
                 {
                     printf("Error type 7 at Line %d: \'RELOP\' Type mismatched for operands.\n", expA->m_lineno);
-                    return NULL;
+                    return gError;
                 }
             }
             else if(strcmp(op->m_identifier,"PLUS") == 0)
             {
+                wDebug("Plus start");
                 if(!(TypeEqual(typeA,typeB) && typeA->kind == BASIC && typeB->kind == BASIC))
                 {
                     printf("Error type 7 at Line %d: \'+\' Type mismatched for operands.\n", expA->m_lineno);
-                    return NULL;
+                    return gError;
                 }
+                wDebug("Plus succ");
             }
             else if(strcmp(op->m_identifier,"MINUS") == 0)
             {
                 if(!(TypeEqual(typeA,typeB) && typeA->kind == BASIC && typeB->kind == BASIC))
                 {
                     printf("Error type 7 at Line %d: \'-\' Type mismatched for operands.\n", expA->m_lineno);
-                    return NULL;
+                    return gError;
                 }
             }
             else if(strcmp(op->m_identifier,"STAR") == 0)
@@ -671,26 +774,28 @@ Type Exp(TreeNode* ptr)
                 if(!(TypeEqual(typeA,typeB) && typeA->kind == BASIC && typeB->kind == BASIC))
                 {
                     printf("Error type 7 at Line %d: \'*\' Type mismatched for operands.\n", expA->m_lineno);
-                    return NULL;
+                    return gError;
                 }
             }
             else if(strcmp(op->m_identifier,"DIV") == 0)
             {
                 if(!(TypeEqual(typeA,typeB) && typeA->kind == BASIC && typeB->kind == BASIC))
                 {
-                    printf("Error type 7 at Line %d: \'\\\' Type mismatched for operands.\n", expA->m_lineno);
-                    return NULL;
+                    printf("Error type 7 at Line %d: \'/\' Type mismatched for operands.\n", expA->m_lineno);
+                    return gError;
                 }
             }
             else 
             {
                 assert(0);
             }
+            return typeA;
         }
     }
     else if(strcmp(child->m_identifier,"LP") == 0)
     {
         //Exp -> LP EXP RP
+        return Exp(child->nextSibling);
     }
     else if(strcmp(child->m_identifier,"MINUS") == 0)
     {
@@ -699,7 +804,7 @@ Type Exp(TreeNode* ptr)
         if(childExpType->kind != BASIC)
         {
             printf("Error type 7 at Line %d: Operator \'-\' mismatched for operands.\n",nextChild->m_lineno);
-            return NULL;
+            return gError;
         }
         return childExpType;
     }
@@ -710,7 +815,7 @@ Type Exp(TreeNode* ptr)
         if(childExpType->kind != BASIC || (childExpType->kind == BASIC && childExpType->basic != B_INT))
         {
             printf("Error type 7 at Line %d: Operator \'!\' mismatched for operands.\n",nextChild->m_lineno);
-            return NULL;
+            return gError;
         }
         return childExpType;
     }
@@ -719,11 +824,11 @@ Type Exp(TreeNode* ptr)
         if(nextChild == NULL)
         {
             //Exp -> ID
-            Symbol symbol = HashTableFind(child->m_identifier);
+            Symbol symbol = HashTableFind(child->idName);
             if(symbol == NULL)
             {
                 printf("Error type 1 at Line %d: Undefined variable \"%s\".\n",child->m_lineno,child->idName);
-                return NULL;
+                return gError;
             }
             return symbol->type;
         }
@@ -734,17 +839,22 @@ Type Exp(TreeNode* ptr)
             if(funSymbol == NULL)
             {
                 printf("Error type 2 at Line %d: Undefined function \"%s\".\n",child->m_lineno,child->idName);
-                return NULL;
+                return gError;
             }
+
             if(funSymbol->type->kind != FUNCTION)
             {
                 printf("Error type 11 at Line %d: \"%s\" is not a function.\n",child->m_lineno,child->idName);
-                return NULL;
+                return gError;
             }
+
+            //printf("args: %s\n",args->m_identifier);
             if(strcmp(args->m_identifier,"Args") == 0)
             {
                 //Exp -> ID LP Args RP
+                //printf("funcparam:%d\n",funSymbol->type->function.cnt);
                 Args(args, funSymbol->type->function.params);
+                //printf("rtnType:%d\n",funSymbol->type->function.rtnType->kind);
                 return funSymbol->type->function.rtnType;
             }
             else if(strcmp(args->m_identifier,"RP") == 0)
@@ -768,6 +878,7 @@ Type Exp(TreeNode* ptr)
         //Exp -> INT
         type->kind = BASIC;
         type->basic = B_INT;
+        wDebug("INT succ");
         return type;
     }
     else if(strcmp(child->m_identifier,"FLOAT") == 0)
@@ -786,6 +897,7 @@ Type Exp(TreeNode* ptr)
 
 void Args(TreeNode* ptr, FieldList param)
 {
+    SematicDebug(ptr);
     if(ptr == NULL && param == NULL)
     {
         return;
@@ -795,11 +907,14 @@ void Args(TreeNode* ptr, FieldList param)
     if(strcmp(child->m_identifier,"Exp") == 0)
     {
         Type type = Exp(child);
+        wDebug("get type succ at args");
+        if(param == NULL) assert(0);
         if(TypeEqual(type,param->type) == 0)
         {
             printf("Error type 9 at Line %d: Function parameter's type dismatches.\n",ptr->m_lineno);
             return;
         }
+        wDebug("type equal at args");
         if(nextChild == NULL)
         {
             //Args -> Exp
@@ -807,6 +922,8 @@ void Args(TreeNode* ptr, FieldList param)
         }
         else if(strcmp(nextChild->m_identifier,"COMMA") == 0)
         {
+            //Args -> Exp COMMA Args
+            
             nextChild = nextChild->nextSibling;
             if((nextChild == NULL && param->next != NULL) || (nextChild != NULL && param->next == NULL))
             {
@@ -828,8 +945,9 @@ void Args(TreeNode* ptr, FieldList param)
 
 int TypeEqual(Type typeA, Type typeB)
 {
+    if(typeA == NULL || typeB == NULL) return 0;
     if(typeA->kind != typeB->kind) return 0;
-    if(typeA->kind == FUNCTION) assert(0);
+    if(typeA->kind == FUNCTION) return 0;
     if(typeA->kind == STRUCTURE) return StructTypeEqual(typeA, typeB);
     if(typeA->kind == ARRAY) return ArrayTypeEqual(typeA, typeB);
     if(typeA->basic == typeB->basic) return 1;
@@ -861,11 +979,25 @@ int ArrayTypeEqual(Type typeA, Type typeB)
     }
     else if(typeA->kind == ARRAY)
     {
-        if(typeA->array.size != typeB->array.size) return 0;
-        else return ArrayTypeEqual(typeA->array.elem, typeB->array.elem);
+        //if(typeA->array.size != typeB->array.size) return 0;
+        return ArrayTypeEqual(typeA->array.elem, typeB->array.elem);
     }
-    else
+    else if(typeA->kind == STRUCTURE)
     {
-        assert(0);
+        return StructTypeEqual(typeA, typeB);
     }
+}
+
+void SematicDebug(TreeNode* ptr)
+{
+#ifdef WDEBUG
+    printf("ptr:%s %d\n",ptr->m_identifier,ptr->m_lineno);
+#endif
+}
+
+void wDebug(const char* msg)
+{
+#ifdef WDEBUG
+    printf("%s\n",msg);
+#endif
 }

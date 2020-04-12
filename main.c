@@ -4,7 +4,7 @@
 #include "syntax.tab.h"
 #include "semanteme.h"
 
-//#define PRINT_TREE 1
+#define PRINT_TREE 1
 
 extern TreeNode* root;
 extern int syntaxErrorFlag;
@@ -13,7 +13,7 @@ extern void ErrorPrint();
 
 int main(int argc, char** argv) 
 {
-    if(argc <= 1) return 1;
+    //if(argc <= 1) return 1;
     FILE *f = fopen(argv[1], "r");
     if(!f)
     {
@@ -25,8 +25,10 @@ int main(int argc, char** argv)
 
     if(syntaxErrorFlag == 0 && lexicalErrorFlag == 0) {
 #ifdef PRINT_TREE
+#ifdef WDEBUG
         TreeTraverse(root, 0);
-        TreeDestroy(root);
+        //TreeDestroy(root);
+#endif
 #endif
         Program(root);
     }

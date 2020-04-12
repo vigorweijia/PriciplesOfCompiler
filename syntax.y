@@ -514,7 +514,7 @@ Args : Exp COMMA Args {
         TreeInsert($$, $3);
     }
     | Exp {
-        $$ = CreateTreeNode(TYPE_NONTERMINAL, @$.first_line, "Exp", "");
+        $$ = CreateTreeNode(TYPE_NONTERMINAL, @$.first_line, "Args", "");
         TreeInsert($$, $1);
     }
     ;

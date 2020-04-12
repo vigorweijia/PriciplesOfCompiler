@@ -1,6 +1,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <stdio.h>
 
 #include "SymbolTable.h"
 
@@ -10,6 +11,9 @@ void HashTableInit()
     {
         gSymbolTable[i] = NULL;
     }
+
+    gError = (Type)malloc(sizeof(Type_));
+    gError->kind = K_ERROR;
 }
 
 int HashTableInsert(char* name, Type type)
@@ -21,10 +25,15 @@ int HashTableInsert(char* name, Type type)
         return 0;
     }
 
-    Symbol symbol = (Symbol)malloc(sizeof(FieldList_));
-    strcpy(symbol->name, name);
+    //printf("%s\n",name);
+
+    FieldList symbol = (FieldList)malloc(sizeof(FieldList_));
+    symbol->name = name;
     symbol->next = NULL;
     symbol->type = type;
+
+    //printf("%s\n",name);
+    
 
     hashVal = HashPjw(name);
     if(gSymbolTable[hashVal] != NULL)
@@ -36,6 +45,8 @@ int HashTableInsert(char* name, Type type)
     {
         gSymbolTable[hashVal] = symbol;
     }
+
+    //printf("%s\n",name);
     
     return 1;
 }
@@ -43,6 +54,7 @@ int HashTableInsert(char* name, Type type)
 Symbol HashTableFind(const char* name)
 {
     if(name == NULL) return NULL;
+    //printf("try to find: %s\n",name);
     unsigned int hashVal = HashPjw(name);
     Symbol symbol = gSymbolTable[hashVal];
     while (symbol != NULL)
@@ -51,10 +63,13 @@ Symbol HashTableFind(const char* name)
         {
             return symbol;
         }
-        Symbol childSymbol = HashTableFindMemberSymbol(name, symbol);
-        if(childSymbol != NULL) 
+        if(symbol->type->kind == STRUCTURE || symbol->type->kind == FUNCTION)
         {
-            return childSymbol;
+            Symbol childSymbol = HashTableFindMemberSymbol(name, symbol);
+            if(childSymbol != NULL) 
+            {
+                return childSymbol;
+            }
         }
         symbol = symbol->next;
     }
@@ -67,30 +82,50 @@ Symbol HashTableFindMemberSymbol(const char* name, Symbol symbol)
     {
         return symbol;
     }
+    Symbol field;
     if(symbol->type->kind == BASIC || symbol->type->kind == ARRAY) return NULL;
-    if(symbol->type->kind == STRUCTURE)
+    else if(symbol->type->kind == STRUCTURE)
     {
-        FieldList field = symbol->type->structure;
-        if(field == NULL) return NULL;
-        else
+        field = symbol->type->structure;
+        while(field != NULL)
         {
-            while (field != NULL)
-            {
-                Symbol temp = HashTableFindMemberSymbol(name,field);
-                if(temp != NULL) return temp;
-                field = field->next;
-            }     
+            Symbol temp = HashTableFindMemberSymbol(name, field);
+            if(temp != NULL) return temp;
+            field = field->next;
         }
     }
     else if(symbol->type->kind == FUNCTION)
     {
-        assert(0);
+        field = symbol->type->function.params;
+        while(field != NULL)
+        {
+            Symbol temp = HashTableFindMemberSymbol(name, field);
+            if(temp != NULL) return temp;
+            field = field->next;
+        }
     }
     else
     {
-        assert(0);   
+        assert(0);
     }
     return NULL;
+}
+
+Symbol HashTableFindStructureMember(const char* name, Type type)
+{
+    assert(type->kind == STRUCTURE);
+
+    Symbol field = type->structure;
+
+    while (field != NULL)
+    {
+        if(strcmp(field->name,name) == 0)
+        {
+            return field;
+        }
+        field = field->next;
+    }
+    return field;
 }
 
 unsigned int HashPjw(const char* name)
