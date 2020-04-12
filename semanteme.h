@@ -96,10 +96,6 @@ void Dec(TreeNode *ptr, Type type, Origin origin, Type structSpecifier);
 Type Exp(TreeNode *ptr);
 void Args(TreeNode *ptr, FieldList param);
 
-SyntaxType GetSyntaxType(const char* identifier);
-
-void PrintError(int errorno, int lineno, const char* msg);
-
 int TypeEqual(Type typeA, Type typeB);
 int StructTypeEqual(Type typeA, Type typeB);
 int ArrayTypeEqual(Type typeA, Type typeB);

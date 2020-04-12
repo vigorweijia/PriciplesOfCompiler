@@ -216,9 +216,13 @@ void VarDec(TreeNode* ptr, Type type, Origin origin, Type structSpecifier)
         {
         case O_CompSt:
         case O_ExtDecList:
-            if(HashTableInsert(child->idName,type) == 0)
+            if(HashTableFind(child->idName) != NULL)
             {
                 printf("Error type 3 at Line %d: (E)Redefined variable \"%s\".\n",child->m_lineno,child->idName);
+            }
+            else if(HashTableInsert(child->idName,type) == 0)
+            {
+                printf("Error type 3 at Line %d: (I)Redefined variable \"%s\".\n",child->m_lineno,child->idName);
             }
             break;
         case O_StructSpecifier:
@@ -228,7 +232,7 @@ void VarDec(TreeNode* ptr, Type type, Origin origin, Type structSpecifier)
                 field->next = NULL;
                 field->type = type;
                 //pay attention to structure equal
-                if(HashTableInsert(field->name,type) == 0)
+                if(HashTableFind(field->name) != NULL)
                 {
                     printf("Error type 15 at Line %d: Redefined field \"%s\".\n",child->m_lineno,child->idName);
                 }
@@ -254,7 +258,7 @@ void VarDec(TreeNode* ptr, Type type, Origin origin, Type structSpecifier)
                 field->name = child->idName;
                 field->next = NULL;
                 field->type = type;
-                if(HashTableInsert(field->name,type) == 0)
+                if(HashTableFind(field->name) != NULL)
                 {
                     printf("Error type 3 at Line %d: Redefined varialble \"%s\".\n",child->m_lineno,child->idName);
                 }
@@ -544,11 +548,11 @@ void Dec(TreeNode* ptr, Type type, Origin origin, Type structSpecifier)
         VarDec(child,type,origin,structSpecifier);
         if(nextChild == NULL)
         {
-
+            //Dec -> VarDec
         }
         else if(strcmp(nextChild->m_identifier,"ASSIGNOP") == 0)
         {
-
+            //Dev -> VarDec ASSIGNOP Exp
         }
         else
         {
@@ -597,7 +601,8 @@ Type Exp(TreeNode* ptr)
                 printf("Error type 13 at Line %d: Illegal use of \'.\'\n",expA->m_lineno);
                 return NULL;
             }
-            //TODO: find in structure
+            //TODO: find in structure, error 14
+
         }
         else 
         {
@@ -819,47 +824,6 @@ void Args(TreeNode* ptr, FieldList param)
     {
         assert(0);
     }
-}
-
-SyntaxType GetSyntaxType(const char* str)
-{
-    if(str[0] == '\0') return T_EMPTY;
-
-    switch (str[0])
-    {
-    case 'A':
-        break;
-    case 'C':
-        break;
-    case 'D':
-        break;
-    case 'E':
-        break;
-    case 'F':
-        break;
-    case 'I':
-        break;
-    case 'L':
-        break;
-    case 'M':
-        break;
-    case 'O':
-        break;
-    case 'R':
-        break;
-    case 'S':
-        break;
-    case 'W':
-        break;
-    default:
-        return T_UNKNOWN;
-        break;
-    }
-}
-
-void PrintError(int errorno, int lineno, const char* msg)
-{
-    printf("Error type %d at Line %d: %s\n",errorno,lineno,msg);
 }
 
 int TypeEqual(Type typeA, Type typeB)

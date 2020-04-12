@@ -2,8 +2,9 @@
 
 #include "tree.h"
 #include "syntax.tab.h"
+#include "semanteme.h"
 
-#define PRINT_TREE 1
+//#define PRINT_TREE 1
 
 extern TreeNode* root;
 extern int syntaxErrorFlag;
@@ -27,6 +28,7 @@ int main(int argc, char** argv)
         TreeTraverse(root, 0);
         TreeDestroy(root);
 #endif
+        Program(root);
     }
     else
     {

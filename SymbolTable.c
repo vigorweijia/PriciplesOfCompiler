@@ -70,17 +70,27 @@ Symbol HashTableFindMemberSymbol(const char* name, Symbol symbol)
     if(symbol->type->kind == BASIC || symbol->type->kind == ARRAY) return NULL;
     if(symbol->type->kind == STRUCTURE)
     {
-
+        FieldList field = symbol->type->structure;
+        if(field == NULL) return NULL;
+        else
+        {
+            while (field != NULL)
+            {
+                Symbol temp = HashTableFindMemberSymbol(name,field);
+                if(temp != NULL) return temp;
+                field = field->next;
+            }     
+        }
     }
     else if(symbol->type->kind == FUNCTION)
     {
-
+        assert(0);
     }
     else
     {
-        
+        assert(0);   
     }
-    
+    return NULL;
 }
 
 unsigned int HashPjw(const char* name)
