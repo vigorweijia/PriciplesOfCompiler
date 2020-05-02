@@ -14,7 +14,7 @@ typedef struct Type_
         enum {B_UNKNOWN, B_INT, B_FLOAT} basic;
         struct {Type elem; int size;} array;
         FieldList structure;
-        struct {Type rtnType; FieldList params; int cnt;} function;
+        struct {Type rtnType; char* funcName; FieldList params; int cnt;} function;
     };
 }Type_;
 

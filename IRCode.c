@@ -7,6 +7,9 @@
 InterCode gInterCodeHead = NULL;
 InterCode gInterCodeTail = NULL;
 
+int gTempVarCount = 1;
+int gLabelCount = 1;
+
 void InsertCode(InterCode ptr)
 {
     assert(ptr != NULL);
@@ -51,4 +54,22 @@ void DeleteCode(InterCode ptr)
     }
     
     free(ptr);
+}
+
+Operand NewLabel()
+{
+    Operand tempLabel = (Operand)malloc(sizeof(Operand_));
+    tempLabel->kind = LABEL_O;
+    tempLabel->varNo = gLabelCount;
+    gLabelCount++;
+    return tempLabel;
+}
+
+Operand NewTempVar()
+{
+    Operand tempVar = (Operand)malloc(sizeof(Operand_));
+    tempVar->kind = TEMPORARY_O;
+    tempVar->varNo = gTempVarCount;
+    gTempVarCount++;
+    return tempVar;
 }

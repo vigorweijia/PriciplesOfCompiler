@@ -60,11 +60,31 @@ void ExtDef(TreeNode *ptr)
     else if(strcmp(child->m_identifier, "FunDec") == 0)
     {
         //ExtDef -> Specifier FunDec CompSt
-        //Type functionType = (Type)malloc(sizeof(Type_));
-        //functionType->kind = FUNCTION;
-        //functionType->function.rtnType = type;
-        //printf("rtnType:%d\n",functionType->function.rtnType->kind);
-        FunDec(child, type);
+        Type func = FunDec(child, type);
+        assert(func != NULL);
+
+        Operand funcOp = (Operand)malloc(sizeof(Operand_));
+        funcOp->kind = FUNCTION;
+        funcOp->value = func->function.funcName;
+        InterCode funcCode = (InterCode)malloc(sizeof(InterCode_));
+        funcCode->kind = FUNCTION_C;
+        funcCode->singleOp.op = funcOp;
+        InsertCode(funcCode);
+
+        FieldList funcParam = func->function.params;
+        while (funcParam != NULL)
+        {
+            Operand paramOp = (Operand)malloc(sizeof(Operand_));
+            paramOp->kind = VARIABLE_O;
+            paramOp->value = funcParam->name;
+            InterCode paramCode = (InterCode)malloc(sizeof(InterCode_));
+            paramCode->kind = PARAM_C;
+            paramCode->singleOp.op = paramOp;
+            InsertCode(paramCode);
+
+            funcParam = funcParam->next;
+        }
+
         CompSt(child->nextSibling, type);
     }
     else
@@ -329,19 +349,20 @@ void VarDec(TreeNode* ptr, Type type, Origin origin, Type structSpecifier)
     }
 }
 
-void FunDec(TreeNode* ptr, Type type)
+Type FunDec(TreeNode* ptr, Type type)
 {
     SematicDebug(ptr);
     TreeNode* child = ptr->firstChild;
     TreeNode* nextChild = child->nextSibling->nextSibling;
+    Type fundecSpecifier = (Type)malloc(sizeof(Type_));
     if(strcmp(nextChild->m_identifier,"VarList") == 0)
     {
         //FunDec -> ID LP VarList RP
-        Type fundecSpecifier = (Type)malloc(sizeof(Type_));
         fundecSpecifier->kind = FUNCTION;
         fundecSpecifier->function.rtnType = type;
         fundecSpecifier->function.params = NULL;
         fundecSpecifier->function.cnt = 0;
+        fundecSpecifier->function.funcName = child->idName;
         VarList(nextChild, type, O_FunDec, fundecSpecifier);
         if(HashTableInsert(child->idName, fundecSpecifier) == 0)
         {
@@ -351,11 +372,11 @@ void FunDec(TreeNode* ptr, Type type)
     else if(strcmp(nextChild->m_identifier,"RP") == 0)
     {
         //FunDec -> ID LP RP
-        Type fundecSpecifier = (Type)malloc(sizeof(Type_));
         fundecSpecifier->kind = FUNCTION;
         fundecSpecifier->function.rtnType = type;
         fundecSpecifier->function.params = NULL;
         fundecSpecifier->function.cnt = 0;
+        fundecSpecifier->function.funcName = child->idName;
         if(HashTableInsert(child->idName, fundecSpecifier) == 0)
         {
             printf("Error type 4 at Line %d: Redefined function \"%s\".\n",child->m_lineno,child->idName);
@@ -365,6 +386,7 @@ void FunDec(TreeNode* ptr, Type type)
     {
         assert(0);
     }
+    return fundecSpecifier;
 }
 
 void VarList(TreeNode* ptr, Type type, Origin origin, Type fundecSpecifier)
@@ -485,7 +507,7 @@ void Stmt(TreeNode* ptr, Type rtnType)
     if(strcmp(child->m_identifier,"Exp") == 0)
     {
         //Stmt -> Exp SEMI
-        expType = Exp(child);
+        expType = Exp(child, NULL);
         wDebug("Stmt succ");
     }
     else if(strcmp(child->m_identifier,"CompSt") == 0)
@@ -496,38 +518,99 @@ void Stmt(TreeNode* ptr, Type rtnType)
     else if(strcmp(child->m_identifier,"RETURN") == 0)
     {
         //Stmt -> RETURN Exp SEMI
-        expType = Exp(nextChild);
+        Operand rtnOp = NewTempVar();
+        expType = Exp(nextChild, rtnOp);
         if(TypeEqual(expType, rtnType) == 0)
         {
             printf("Error type 8 at Line %d: Type mismatched for return.\n",child->m_lineno);
         }
+        InterCode rtnCode = (InterCode)malloc(sizeof(InterCode_));
+        rtnCode->kind = RETURN_C;
+        rtnCode->singleOp.op = rtnOp;
+        InsertCode(rtnCode);
     }
     else if(strcmp(child->m_identifier,"IF") == 0)
     {
+        Operand label1 = NewLabel();
+        Operand label2 = NewLabel();
         TreeNode* expChild = nextChild->nextSibling;
         TreeNode* stmtChild = expChild->nextSibling->nextSibling;
         TreeNode* elseChild = stmtChild->nextSibling;
-        expType = Exp(expChild);
-        Stmt(stmtChild, rtnType);
+
+        expType = ExpCond(expChild, label1, label2); // code 1
+
+        InterCode label1Code = (InterCode)malloc(sizeof(InterCode_));
+        label1Code->kind = LABEL_C;
+        label1Code->singleOp.op = label1;
+        InsertCode(label1Code); // label 1
+
+        Stmt(stmtChild, rtnType); // code 2
+
         if(elseChild == NULL)
         {
             //Stmt -> IF LP Exp RP Stmt
+            InterCode label2Code = (InterCode)malloc(sizeof(InterCode_));
+            label2Code->kind = LABEL_C;
+            label2Code->singleOp.op = label2;
+            InsertCode(label2Code); // label 2
             return;
         }
         else if(strcmp(elseChild->m_identifier,"ELSE") == 0)
         {
             //Stmt -> IF LP Exp RP Stmt ELSE Stmt
+            Operand label3 = NewLabel();
+
+            InterCode label3Goto = (InterCode)malloc(sizeof(InterCode_));
+            label3Goto->kind = GOTO_C;
+            label3Goto->singleOp.op = label3;
+            InsertCode(label3Goto); // goto label3
+
+            InterCode label2Code = (InterCode)malloc(sizeof(InterCode_));
+            label2Code->kind = LABEL_C;
+            label2Code->singleOp.op = label2;
+            InsertCode(label2Code); // label2
+
             elseChild = elseChild->nextSibling;
-            Stmt(elseChild, rtnType);
+            Stmt(elseChild, rtnType); // code3
+
+            InterCode label3Code = (InterCode)malloc(sizeof(InterCode_));
+            label3Code->kind = LABEL_C;
+            label3Code->singleOp.op = label3;
+            InsertCode(label3Code); // label3
         }
     }
     else if(strcmp(child->m_identifier,"WHILE") == 0)
     {
         //Stmt -> WHILE LP Exp RP Stmt
+        Operand label1 = NewLabel();
+        Operand label2 = NewLabel();
+        Operand label3 = NewLabel();
         TreeNode* expChild = nextChild->nextSibling;
         TreeNode* stmtChild = expChild->nextSibling->nextSibling;
-        expType = Exp(expChild);
-        Stmt(stmtChild, rtnType);
+
+        InterCode label1Code = (InterCode)malloc(sizeof(InterCode_));
+        label1Code->kind = LABEL_C;
+        label1Code->singleOp.op = label1;
+        InsertCode(label1Code); //label 1
+
+        expType = ExpCond(expChild, label2, label3); //code 1
+
+        InterCode label2Code = (InterCode)malloc(sizeof(InterCode_));
+        label2Code->kind = LABEL_C;
+        label2Code->singleOp.op = label2;
+        InsertCode(label2Code); //label 2
+
+        Stmt(stmtChild, rtnType); //code 2
+
+        InterCode label1Goto = (InterCode)malloc(sizeof(InterCode_));
+        label1Goto->kind = GOTO_C;
+        label1Goto->singleOp.op = label1;
+        InsertCode(label1Goto);
+
+        InterCode label3Code = (InterCode)malloc(sizeof(InterCode_));
+        label3Code->kind = LABEL_C;
+        label3Code->singleOp.op = label3;
+        InsertCode(label3Code); //label 3
     }
     else
     {
@@ -629,6 +712,9 @@ void Dec(TreeNode* ptr, Type type, Origin origin, Type structSpecifier)
                 printf("Error type 15 at Line %d: Invalid definition in structure.\n",child->m_lineno);
                 return;
             }
+            Operand place = (Operand)malloc(sizeof(Operand_));
+            place->kind = VARIABLE_O;
+            //place->value = 
             Type expType = Exp(nextChild->nextSibling);
             if(TypeEqual(type,expType) == 0)
             {
@@ -648,7 +734,7 @@ void Dec(TreeNode* ptr, Type type, Origin origin, Type structSpecifier)
     }
 }
 
-Type Exp(TreeNode* ptr)
+Type Exp(TreeNode* ptr, Operand place)
 {
     SematicDebug(ptr);
     TreeNode* child = ptr->firstChild;
@@ -893,6 +979,11 @@ Type Exp(TreeNode* ptr)
         assert(0);
     }
     assert(0);
+}
+
+Type ExpCond(TreeNode* ptr, Operand trueLabel, Operand falseLabel)
+{
+
 }
 
 void Args(TreeNode* ptr, FieldList param)

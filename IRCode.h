@@ -5,7 +5,7 @@ typedef struct Operand_* Operand;
 typedef struct InterCode_* InterCode;
 
 typedef struct Operand_{
-    enum{VARIABLE, CONSTANT, ADDRESS} kind;
+    enum{UNKOWN_O, VARIABLE_O, CONSTANT_O, ADDRESS_O, FUNCTION_O, TEMPORARY_O, LABEL_O} kind;
     union{
         int varNo;
         char* value;
@@ -13,7 +13,7 @@ typedef struct Operand_{
 }Operand_;
 
 typedef struct InterCode_{
-    enum{ASSIGN, ADD, SUB, MUL, DIV}kind;
+    enum{ASSIGN_C, ADD_C, SUB_C, MUL_C, DIV_C, FUNCTION_C, PARAM_C, RETURN_C, LABEL_C, GOTO_C}kind;
     union{
         struct {Operand right, left;} assign;
         struct {Operand result, op1, op2;} doubleOp;
@@ -25,5 +25,11 @@ typedef struct InterCode_{
 
 void InsertCode(InterCode);
 void DeleteCode(InterCode);
+
+Operand NewLabel();
+Operand NewTempVar();
+
+extern int gTempVarCount;
+extern int gLabelCount;
 
 #endif
