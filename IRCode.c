@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <string.h>
 
 #include "IRCode.h"
 
@@ -59,6 +60,7 @@ void DeleteCode(InterCode ptr)
 Operand NewLabel()
 {
     Operand tempLabel = (Operand)malloc(sizeof(Operand_));
+    memset(tempLabel, 0, sizeof(Operand_));
     tempLabel->kind = LABEL_O;
     tempLabel->varNo = gLabelCount;
     gLabelCount++;
@@ -68,8 +70,58 @@ Operand NewLabel()
 Operand NewTempVar()
 {
     Operand tempVar = (Operand)malloc(sizeof(Operand_));
+    memset(tempVar, 0, sizeof(Operand_));
     tempVar->kind = TEMPORARY_O;
     tempVar->varNo = gTempVarCount;
     gTempVarCount++;
     return tempVar;
+}
+
+Operand NewConstant(const char* v)
+{
+    Operand tempConstant = (Operand)malloc(sizeof(Operand_));
+    memset(tempConstant, 0, sizeof(tempConstant));
+    tempConstant->kind = CONSTANT_O;
+    tempConstant->value = v;
+    return tempConstant;
+}
+
+InterCode GenSingleOp(Operand op, InterCodeType t)
+{
+    InterCode tempCode = (InterCode)malloc(sizeof(InterCode_));
+    memset(tempCode, 0, sizeof(InterCode_));
+    tempCode->kind = t;
+    tempCode->singleOp.op = op;
+    return tempCode;
+}
+
+InterCode GenDoubleOp(Operand result, Operand op1, Operand op2, InterCodeType t)
+{
+    InterCode tempCode = (InterCode)malloc(sizeof(InterCode_));
+    memset(tempCode, 0, sizeof(InterCode_));
+    tempCode->kind = t;
+    tempCode->doubleOp.op1 = op1;
+    tempCode->doubleOp.op2 = op2;
+    tempCode->doubleOp.result = result;
+    return tempCode;
+}
+
+InterCode GenAssign(Operand left, Operand right)
+{
+    InterCode tempCode = (InterCode)malloc(sizeof(InterCode_));
+    memset(tempCode, 0, sizeof(InterCode_));
+    tempCode->kind = ASSIGN_C;
+    tempCode->assign.left = left;
+    tempCode->assign.right = right;
+    return tempCode;
+}
+
+InterCode GenCall(Operand left, Operand right)
+{
+    InterCode tempCode = (InterCode)malloc(sizeof(InterCode_));
+    memset(tempCode, 0, sizeof(InterCode_));
+    tempCode->kind = CALL_C;
+    tempCode->assign.left = left;
+    tempCode->assign.right = right;
+    return tempCode;
 }

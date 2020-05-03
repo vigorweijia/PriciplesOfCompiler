@@ -886,24 +886,60 @@ Type Exp(TreeNode* ptr, Operand place)
     else if(strcmp(child->m_identifier,"MINUS") == 0)
     {
         //Exp -> MINUS Exp
-        Type childExpType = Exp(nextChild);
+        Operand rightOp = NewTempVar();
+
+        Type childExpType = Exp(nextChild, rightOp); //code1
         if(childExpType->kind != BASIC)
         {
             printf("Error type 7 at Line %d: Operator \'-\' mismatched for operands.\n",nextChild->m_lineno);
             return gError;
         }
+
+        Operand leftOp = NewConstant("0");
+        if(place != NULL)
+        {
+            InterCode minusCode = GenDoubleOp(place, leftOp, rightOp, SUB_C); //code2
+            InsertCode(minusCode);
+        }
+
         return childExpType;
     }
     else if(strcmp(child->m_identifier,"NOT") == 0)
     {
         //Exp -> NOT Exp
-        Type childExpType = Exp(nextChild);
+        Operand label1 = NewLabel();
+        Operand label2 = NewLabel();
+        Operand zeroOp = NewConstant("0");
+        
+        InterCode code0 = GenAssign(place, zeroOp);
+        if(place != NULL)
+        {
+            InsertCode(code0); //code0
+        }
+
+        /*Type childExpType = Exp(nextChild, );
         if(childExpType->kind != BASIC || (childExpType->kind == BASIC && childExpType->basic != B_INT))
         {
             printf("Error type 7 at Line %d: Operator \'!\' mismatched for operands.\n",nextChild->m_lineno);
             return gError;
         }
-        return childExpType;
+        return childExpType;*/
+
+        Type expType = ExpCond(ptr, label1, label2); //code1
+
+        InterCode label1Code = GenSigleOp(label1, LABEL_C);
+        InsertCode(label1Code); //label1
+
+        Operand oneOp = NewConstant("1");
+        
+        InterCode code2 = GenAssign(place, oneOp);
+        if(place != NULL)
+        {
+            InsertCode(code2);
+        }
+
+        InterCode label2Code = GenSignleOp(label2, LABEL_C);
+        InsertCode(label2Code);
     }
     else if(strcmp(child->m_identifier,"ID") == 0)
     {
@@ -951,6 +987,36 @@ Type Exp(TreeNode* ptr, Operand place)
                     printf("Error type 9 at Line %d: Function \"%s\" is not applicable for arguments.\n",child->m_lineno,child->idName);
                     return funSymbol->type->function.rtnType;
                 }
+
+                if(strcmp(funSymbol->name,"read") == 0)
+                {
+                    if(place != NULL)
+                    {
+                        InterCode readCode = GenSigleOp(place, READ_C);
+                        InsertCode(readCode);
+                    }
+                }
+                else
+                {
+                    Operand funcOp = (Operand)malloc(sizeof(Operand_));
+                    funcOp->value = funSymbol->name;
+                    funcOp->kind = FUNCTION_O;
+
+                    Operand none = NewTempVar();
+
+                    InterCode funcCode = NULL;
+                    if(place != NULL)
+                    {
+                        funcCode = GenCall(place, funcOp);
+                    }
+                    else
+                    {
+                        funcCode = GenCall(none, funcOp);   
+                    }
+                    InsertCode(funcCode);
+                }
+                
+
                 return funSymbol->type->function.rtnType;
             }
             else
