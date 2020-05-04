@@ -40,6 +40,9 @@ InterCode GenTripleOp(Operand op1,Operand op2,Operand label,const char *opr);
 InterCode GenAssign(Operand left,Operand right);
 InterCode GenCall(Operand left,Operand right);
 
+void InterCodePrint();
+void OperandPrint(Operand op);
+
 extern int gTempVarCount;
 extern int gLabelCount;
 

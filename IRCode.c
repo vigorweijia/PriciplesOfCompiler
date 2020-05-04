@@ -151,3 +151,136 @@ InterCode GenCall(Operand left, Operand right)
     tempCode->assign.right = right;
     return tempCode;
 }
+
+void InterCodePrinter(const char* msg)
+{
+    printf("%s",msg);
+}
+
+void InterCodePrintCal(InterCode p)
+{
+    OperandPrint(p->doubleOp.result);
+    InterCodePrinter(":= ");
+    OperandPrint(p->doubleOp.op1);
+    switch (p->kind)
+    {
+    case ADD_C:
+        InterCodePrinter("+ ");
+        break;
+    case SUB_C:
+        InterCodePrinter("- ");
+        break;
+    case MUL_C:
+        InterCodePrinter("* ");
+        break;
+    case DIV_C:
+        InterCodePrinter("/ ");
+        break;
+    default:
+        break;
+    } 
+    OperandPrint(p->doubleOp.op2);
+}
+
+void InterCodePrint()
+{
+    InterCode p = gInterCodeHead;
+    while (p != NULL)
+    {
+        switch(p->kind)
+        {
+            case ASSIGN_C:
+            OperandPrint(p->assign.left);
+            InterCodePrinter(":= ");
+            OperandPrint(p->assign.right);
+            break;
+            case ADD_C:
+            case SUB_C:
+            case MUL_C:
+            case DIV_C:
+            InterCodePrintCal(p);
+            break;
+            case FUNCTION_C:
+            InterCodePrinter("FUNCTION ");
+            OperandPrint(p->singleOp.op);
+            InterCodePrinter(":");
+            break;
+            case PARAM_C:
+            InterCodePrinter("PARAM ");
+            OperandPrint(p->singleOp.op);
+            break;
+            case RETURN_C:
+            InterCodePrinter("RETURN ");
+            OperandPrint(p->singleOp.op);
+            break;
+            case LABEL_C:
+            InterCodePrinter("LABEL ");
+            OperandPrint(p->singleOp.op);
+            InterCodePrinter(": ");
+            break;
+            case GOTO_C:
+            InterCodePrinter("GOTO ");
+            OperandPrint(p->singleOp.op);
+            break;
+            case READ_C:
+            InterCodePrinter("READ ");
+            OperandPrint(p->singleOp.op);
+            break;
+            case WRITE_C:
+            InterCodePrinter("WRITE ");
+            OperandPrint(p->singleOp.op);
+            break;
+            case CALL_C:
+            OperandPrint(p->assign.left);
+            InterCodePrinter(":= CALL ");
+            OperandPrint(p->assign.right);
+            break;
+            case ARGS_C:
+            InterCodePrinter("ARG ");
+            OperandPrint(p->singleOp.op);
+            break;
+            case IFGOTO_C:
+            InterCodePrinter("IF ");
+            OperandPrint(p->tripleOp.op1);
+            InterCodePrinter(p->tripleOp.opr);
+            OperandPrint(p->tripleOp.op2);
+            InterCodePrinter("GOTO ");
+            OperandPrint(p->tripleOp.label);
+            break;
+            default:
+            assert(0);
+            break;
+        }
+        p = p->next;
+    }
+    
+}
+
+void OperandPrint(Operand op)
+{
+    if(op == NULL) assert(0);
+    switch (op->kind)
+    {
+    case VARIABLE_O:
+    assert(op->value != NULL);
+    printf("%s ",op->value);
+    break;
+    case CONSTANT_O:
+    printf("#%s ",op->value);
+    break;
+    case ADDRESS_O:
+    break;
+    case FUNCTION_O:
+    printf("%s ",op->value);
+    break;
+    case TEMPORARY_O:
+    printf("t%d ",op->varNo);
+    break;
+    case LABEL_O:
+    printf("label%d ",op->varNo);
+    break;
+    default:
+    assert(0);
+    break;
+    }
+}
