@@ -33,7 +33,7 @@ void Dec(TreeNode *ptr, Type type, Origin origin, Type structSpecifier);
 
 Type Exp(TreeNode *ptr, Operand place);
 Type ExpCond(TreeNode *ptr, Operand trueLabel, Operand falseLabel);
-void Args(TreeNode *ptr, FieldList param);
+void Args(TreeNode *ptr, FieldList param, Operand args);
 
 int TypeEqual(Type typeA, Type typeB);
 int StructTypeEqual(Type typeA, Type typeB);

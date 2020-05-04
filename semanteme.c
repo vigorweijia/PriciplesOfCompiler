@@ -747,6 +747,7 @@ Type Exp(TreeNode* ptr, Operand place)
         TreeNode* expB = expA->nextSibling->nextSibling;
         if(strcmp(op->m_identifier,"LB") == 0)
         {
+            //Exp -> Exp LB Exp RB
             Type typeA = Exp(expA);
             Type typeB = Exp(expB);
             int flag = 0;
@@ -773,7 +774,9 @@ Type Exp(TreeNode* ptr, Operand place)
         }
         else if(strcmp(op->m_identifier,"DOT") == 0)
         {
-            Type typeA = Exp(expA);
+            //Exp -> Exp DOT ID
+            Operand structVar = NewTempVar();
+            Type typeA = Exp(expA, structVar);
             if(typeA == NULL) wDebug("NULL Detected");
             if(typeA->kind != STRUCTURE)
             {
@@ -791,8 +794,10 @@ Type Exp(TreeNode* ptr, Operand place)
         }
         else 
         {
-            Type typeA = Exp(expA);
-            Type typeB = Exp(expB);
+            Operand leftOp = NewTempVar();
+            Operand rightOp = NewTempVar();
+            Type typeA = Exp(expA, leftOp);
+            Type typeB = Exp(expB, rightOp);
             wDebug("Get type succ");
             if(strcmp(op->m_identifier,"ASSIGNOP") == 0)
             {
@@ -811,9 +816,20 @@ Type Exp(TreeNode* ptr, Operand place)
                     printf("Error type 5 at Line %d: Type mismatched for assignment.\n",child->m_lineno);
                     return gError;
                 }
+
+                InterCode assign1 = GenAssign(leftOp, rightOp);
+                InsertCode(assign1);
+
+                if(place != NULL)
+                {
+                    InterCode assign2 = GenAssign(place, leftOp);
+                    InsertCode(assign2);
+                }
             }
             else if(strcmp(op->m_identifier,"AND") == 0)
             {
+                //move to ExpCond
+                assert(0);
                 if(!(typeA->kind == BASIC && typeB->kind == BASIC && typeA->basic == B_INT && typeB->basic == B_INT))
                 {
                     printf("Error type 7 at Line %d: \'&&\' Type mismatched for operands.\n", expA->m_lineno);
@@ -822,6 +838,8 @@ Type Exp(TreeNode* ptr, Operand place)
             }
             else if(strcmp(op->m_identifier,"OR") == 0)
             {
+                //move to ExpCond
+                assert(0);
                 if(!(typeA->kind == BASIC && typeB->kind == BASIC && typeA->basic == B_INT && typeB->basic == B_INT))
                 {
                     printf("Error type 7 at Line %d: \'||\' Type mismatched for operands.\n", expA->m_lineno);
@@ -830,7 +848,8 @@ Type Exp(TreeNode* ptr, Operand place)
             }
             else if(strcmp(op->m_identifier,"RELOP") == 0)
             {
-                //printf("typeA:%d typeB:%d\n",typeA->kind,typeB->kind);
+                //move to ExpCond
+                assert(0);
                 if(!(TypeEqual(typeA,typeB) && typeA->kind == BASIC && typeB->kind == BASIC))
                 {
                     printf("Error type 7 at Line %d: \'RELOP\' Type mismatched for operands.\n", expA->m_lineno);
@@ -846,6 +865,9 @@ Type Exp(TreeNode* ptr, Operand place)
                     return gError;
                 }
                 wDebug("Plus succ");
+
+                InterCode addCode = GenDoubleOp(place, leftOp, rightOp, ADD_C);
+                InsertCode(addCode);
             }
             else if(strcmp(op->m_identifier,"MINUS") == 0)
             {
@@ -854,6 +876,9 @@ Type Exp(TreeNode* ptr, Operand place)
                     printf("Error type 7 at Line %d: \'-\' Type mismatched for operands.\n", expA->m_lineno);
                     return gError;
                 }
+
+                InterCode minusCode = GenDoubleOp(place, leftOp, rightOp, SUB_C);
+                InsertCode(minusCode);
             }
             else if(strcmp(op->m_identifier,"STAR") == 0)
             {
@@ -862,6 +887,9 @@ Type Exp(TreeNode* ptr, Operand place)
                     printf("Error type 7 at Line %d: \'*\' Type mismatched for operands.\n", expA->m_lineno);
                     return gError;
                 }
+
+                InterCode starCode = GenDoubleOp(place, leftOp, rightOp, MUL_C);
+                InsertCode(starCode);
             }
             else if(strcmp(op->m_identifier,"DIV") == 0)
             {
@@ -870,6 +898,9 @@ Type Exp(TreeNode* ptr, Operand place)
                     printf("Error type 7 at Line %d: \'/\' Type mismatched for operands.\n", expA->m_lineno);
                     return gError;
                 }
+
+                InterCode divCode = GenDoubleOp(place, leftOp, rightOp, DIV_C);
+                InsertCode(divCode);;
             }
             else 
             {
@@ -881,7 +912,7 @@ Type Exp(TreeNode* ptr, Operand place)
     else if(strcmp(child->m_identifier,"LP") == 0)
     {
         //Exp -> LP EXP RP
-        return Exp(child->nextSibling);
+        return Exp(child->nextSibling, place);
     }
     else if(strcmp(child->m_identifier,"MINUS") == 0)
     {
@@ -938,7 +969,7 @@ Type Exp(TreeNode* ptr, Operand place)
             InsertCode(code2);
         }
 
-        InterCode label2Code = GenSignleOp(label2, LABEL_C);
+        InterCode label2Code = GenSigleOp(label2, LABEL_C);
         InsertCode(label2Code);
     }
     else if(strcmp(child->m_identifier,"ID") == 0)
@@ -952,6 +983,13 @@ Type Exp(TreeNode* ptr, Operand place)
                 printf("Error type 1 at Line %d: Undefined variable \"%s\".\n",child->m_lineno,child->idName);
                 return gError;
             }
+
+            if(place != NULL)
+            {
+                place->kind = VARIABLE_O;
+                place->value = child->idName;
+            }
+
             return symbol->type;
         }
         else
@@ -970,13 +1008,44 @@ Type Exp(TreeNode* ptr, Operand place)
                 return gError;
             }
 
-            //printf("args: %s\n",args->m_identifier);
             if(strcmp(args->m_identifier,"Args") == 0)
             {
                 //Exp -> ID LP Args RP
-                //printf("funcparam:%d\n",funSymbol->type->function.cnt);
-                Args(args, funSymbol->type->function.params);
-                //printf("rtnType:%d\n",funSymbol->type->function.rtnType->kind);
+                Operand argsHead = (Operand)malloc(sizeof(Operand_));
+                argsHead->next = NULL;
+
+                Args(args, funSymbol->type->function.params, argsHead);
+                
+                if(strcmp(funSymbol->name,"write") == 0)
+                {
+                    InterCode writeCode = GenSigleOp(argsHead->next, WRITE_C);
+                    InsertCode(writeCode);
+                }
+                else
+                {
+                    //push arguments
+                    Operand argument = argsHead->next;
+                    while (argument != NULL)
+                    {
+                        InterCode argsCode = GenSigleOp(argument, ARGS_C);
+                        InsertCode(argsCode);
+                        argument = argument->next;
+                    }
+                    //call function
+                    Operand funcOp = NewFunction(funSymbol->name);
+                    Operand none = NewTempVar();
+                    InterCode funcCode = NULL;
+                    if(place != NULL)
+                    {
+                        funcCode = GenCall(place, funcOp);
+                    }
+                    else
+                    {
+                        funcCode = GenCall(none, funcOp);
+                    }
+                    InsertCode(funcCode);
+                }
+
                 return funSymbol->type->function.rtnType;
             }
             else if(strcmp(args->m_identifier,"RP") == 0)
@@ -998,12 +1067,8 @@ Type Exp(TreeNode* ptr, Operand place)
                 }
                 else
                 {
-                    Operand funcOp = (Operand)malloc(sizeof(Operand_));
-                    funcOp->value = funSymbol->name;
-                    funcOp->kind = FUNCTION_O;
-
+                    Operand funcOp = NewFunction(funSymbol->name);
                     Operand none = NewTempVar();
-
                     InterCode funcCode = NULL;
                     if(place != NULL)
                     {
@@ -1014,8 +1079,7 @@ Type Exp(TreeNode* ptr, Operand place)
                         funcCode = GenCall(none, funcOp);   
                     }
                     InsertCode(funcCode);
-                }
-                
+                }             
 
                 return funSymbol->type->function.rtnType;
             }
@@ -1030,7 +1094,16 @@ Type Exp(TreeNode* ptr, Operand place)
         //Exp -> INT
         type->kind = BASIC;
         type->basic = B_INT;
-        wDebug("INT succ");
+
+        if(place != NULL)
+        {
+            place->kind = CONSTANT_O;
+            place->value = (char)malloc(20);
+            lab3Debug("itoa...");
+            sprintf(place->value,"%d",child->intValue);
+            lab3Debug("itoa done.");
+        }
+
         return type;
     }
     else if(strcmp(child->m_identifier,"FLOAT") == 0)
@@ -1038,6 +1111,16 @@ Type Exp(TreeNode* ptr, Operand place)
         //Exp -> FLOAT
         type->kind = BASIC;
         type->basic = B_FLOAT;
+
+        if(place != NULL)
+        {
+            place->kind = CONSTANT_O;
+            place->value = (char)malloc(20);
+            lab3Debug("ftoa...");
+            sprintf(place->value,"%f",child->floatValue);
+            lab3Debug("ftoa done.");
+        }
+
         return type;
     }
     else 
@@ -1049,10 +1132,57 @@ Type Exp(TreeNode* ptr, Operand place)
 
 Type ExpCond(TreeNode* ptr, Operand trueLabel, Operand falseLabel)
 {
-
+    TreeNode* child = ptr->firstChild;
+    TreeNode* nextChild = child->nextSibling;
+    if(strcmp(child->m_identifier,"EXP") == 0)
+    {
+        TreeNode* Exp1 = child;
+        TreeNode* Exp2 = nextChild->nextSibling;
+        if(strcmp(nextChild->m_identifier,"RELOP") == 0)
+        {
+            //Exp -> Exp RELOP Exp
+            Operand t1 = NewTempVar();
+            Operand t2 = NewTempVar();
+            Exp(Exp1, t1); //code1
+            Exp(Exp2, t2); //code2
+            char *op = nextChild->idName;
+            InterCode code3 = GenTripleOp(t1, t2, trueLabel, op);
+            InsertCode(code3);
+        }
+        else if(strcmp(nextChild->m_identifier,"AND") == 0)
+        {
+            //Exp -> Exp AND Exp
+            Operand label1 = NewLabel();
+            ExpCond(Exp1, label1, falseLabel); //code1
+            InterCode label1Code = GenSingleOp(label1, LABEL_C);
+            InsertCode(label1Code); //label1
+            ExpCond(Exp2, trueLabel, falseLabel); //code2
+        }
+        else if(strcmp(nextChild->m_identifier,"OR") == 0)
+        {
+            //Exp -> Exp OR Exp
+            Operand label1 = NewLabel();
+            ExpCond(Exp1, trueLabel, label1); //code1
+            InterCode label1Code = GenSingle(label1, LABEL_C);
+            InsertCode(label1Code);
+            ExpCond(Exp2, trueLabel, falseLabel); //code2
+        }
+        else
+        {
+            assert(0);
+        }
+    }
+    else if(strcmp(child->m_identifier,"NOT") == 0)
+    {
+        ExpCond(nextChild, falseLabel, trueLabel);
+    }
+    else
+    {
+        assert(0);
+    }
 }
 
-void Args(TreeNode* ptr, FieldList param)
+void Args(TreeNode* ptr, FieldList param, Operand args)
 {
     SematicDebug(ptr);
     if(ptr == NULL && param == NULL)
@@ -1063,7 +1193,10 @@ void Args(TreeNode* ptr, FieldList param)
     TreeNode* nextChild = child->nextSibling;
     if(strcmp(child->m_identifier,"Exp") == 0)
     {
-        Type type = Exp(child);
+        Operand tp = NewTempVar();
+        Type type = Exp(child, tp);
+        tp->next = args->next;
+        args->next = tp;
         wDebug("get type succ at args");
         if(param == NULL) assert(0);
         if(TypeEqual(type,param->type) == 0)
@@ -1087,7 +1220,7 @@ void Args(TreeNode* ptr, FieldList param)
                 printf("Error type 9 at Line %d: Function parameter's amount dismatches.\n",ptr->m_lineno);
                 return;
             }
-            Args(nextChild,param->next);
+            Args(nextChild,param->next,args);
         }
         else
         {
@@ -1157,4 +1290,9 @@ void wDebug(const char* msg)
 #ifdef WDEBUG
     printf("%s\n",msg);
 #endif
+}
+
+void lab3Debug(const char *msg)
+{
+    printf("%s\n",msg);
 }

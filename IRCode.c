@@ -64,6 +64,7 @@ Operand NewLabel()
     tempLabel->kind = LABEL_O;
     tempLabel->varNo = gLabelCount;
     gLabelCount++;
+    tempLabel->next = NULL;
     return tempLabel;
 }
 
@@ -74,6 +75,7 @@ Operand NewTempVar()
     tempVar->kind = TEMPORARY_O;
     tempVar->varNo = gTempVarCount;
     gTempVarCount++;
+    tempVar->next = NULL;
     return tempVar;
 }
 
@@ -83,7 +85,18 @@ Operand NewConstant(const char* v)
     memset(tempConstant, 0, sizeof(tempConstant));
     tempConstant->kind = CONSTANT_O;
     tempConstant->value = v;
+    tempConstant->next = NULL;
     return tempConstant;
+}
+
+Operand NewFunction(const char* funcName)
+{
+    Operand tempFunc = (Operand)malloc(sizeof(Operand_));
+    memset(tempFunc, 0, sizeof(tempFunc));
+    tempFunc->kind = FUNCTION_O;
+    tempFunc->value = funcName;
+    tempFunc->next = NULL;
+    return tempFunc;
 }
 
 InterCode GenSingleOp(Operand op, InterCodeType t)
@@ -103,6 +116,19 @@ InterCode GenDoubleOp(Operand result, Operand op1, Operand op2, InterCodeType t)
     tempCode->doubleOp.op1 = op1;
     tempCode->doubleOp.op2 = op2;
     tempCode->doubleOp.result = result;
+    return tempCode;
+}
+
+InterCode GenTripleOp(Operand op1, Operand op2, Operand label, const char* opr)
+{
+    InterCode tempCode = (InterCode)malloc(sizeof(InterCode_));
+    memset(tempCode, 0, sizeof(InterCode_));
+    tempCode->kind = IFGOTO_C;
+    tempCode->tripleOp.op1 = op1;
+    tempCode->tripleOp.op2 = op2;
+    tempCode->tripleOp.label = label;
+    tempCode->tripleOp.opr = opr;
+    assert(label->kind == LABEL_O);
     return tempCode;
 }
 
