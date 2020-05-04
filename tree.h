@@ -12,7 +12,8 @@ typedef enum{
     TYPE_FLOAT = 4,
     TYPE_ID = 8,
     TYPE_STR = 16, //{TYPE} int|float
-    TYPE_OTHER_TERMINAL = 32
+    TYPE_RELOP = 32,
+    TYPE_OTHER_TERMINAL = 64
 }TreeNodeType;
 #endif
 

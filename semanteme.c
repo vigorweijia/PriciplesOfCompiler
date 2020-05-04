@@ -10,6 +10,32 @@ void Program(TreeNode *ptr)
 {
     HashTableInit(); //!!!!!!!!!!!!!!!!!!!!!!!
     SematicDebug(ptr);
+
+    Type intType = (Type)malloc(sizeof(Type_));
+    intType->kind = BASIC;
+    intType->basic = B_INT;
+
+    Type writeFunc = (Type)malloc(sizeof(Type_));
+    writeFunc->kind = FUNCTION;
+    writeFunc->function.rtnType = intType;
+    writeFunc->function.cnt = 1;
+    writeFunc->function.funcName = "write";
+    FieldList field = (FieldList)malloc(sizeof(FieldList_));
+    field->name = "WriteParam";
+    field->next = NULL;
+    field->type = intType;
+    writeFunc->function.params = field;
+
+    Type readFunc = (Type)malloc(sizeof(Type_));
+    readFunc->kind = FUNCTION;
+    readFunc->function.rtnType = intType;
+    readFunc->function.cnt = 0;
+    readFunc->function.funcName = "read";
+    readFunc->function.params = field;
+
+    HashTableInsert("write", writeFunc);
+    HashTableInsert("read", readFunc);
+
     TreeNode* child = ptr->firstChild;
     if(child == NULL) return; //ExtDefList is null
     else if(strcmp(child->m_identifier, "ExtDefList") == 0) ExtDefList(child);
@@ -524,9 +550,7 @@ void Stmt(TreeNode* ptr, Type rtnType)
         {
             printf("Error type 8 at Line %d: Type mismatched for return.\n",child->m_lineno);
         }
-        InterCode rtnCode = (InterCode)malloc(sizeof(InterCode_));
-        rtnCode->kind = RETURN_C;
-        rtnCode->singleOp.op = rtnOp;
+        InterCode rtnCode = GenSingleOp(rtnOp, RETURN_C);
         InsertCode(rtnCode);
     }
     else if(strcmp(child->m_identifier,"IF") == 0)
@@ -539,9 +563,7 @@ void Stmt(TreeNode* ptr, Type rtnType)
 
         expType = ExpCond(expChild, label1, label2); // code 1
 
-        InterCode label1Code = (InterCode)malloc(sizeof(InterCode_));
-        label1Code->kind = LABEL_C;
-        label1Code->singleOp.op = label1;
+        InterCode label1Code = GenSingleOp(label1, LABEL_C);
         InsertCode(label1Code); // label 1
 
         Stmt(stmtChild, rtnType); // code 2
@@ -549,9 +571,7 @@ void Stmt(TreeNode* ptr, Type rtnType)
         if(elseChild == NULL)
         {
             //Stmt -> IF LP Exp RP Stmt
-            InterCode label2Code = (InterCode)malloc(sizeof(InterCode_));
-            label2Code->kind = LABEL_C;
-            label2Code->singleOp.op = label2;
+            InterCode label2Code = GenSingleOp(label2, LABEL_C);
             InsertCode(label2Code); // label 2
             return;
         }
@@ -560,22 +580,16 @@ void Stmt(TreeNode* ptr, Type rtnType)
             //Stmt -> IF LP Exp RP Stmt ELSE Stmt
             Operand label3 = NewLabel();
 
-            InterCode label3Goto = (InterCode)malloc(sizeof(InterCode_));
-            label3Goto->kind = GOTO_C;
-            label3Goto->singleOp.op = label3;
+            InterCode label3Goto = GenSingleOp(label3, GOTO_C);
             InsertCode(label3Goto); // goto label3
 
-            InterCode label2Code = (InterCode)malloc(sizeof(InterCode_));
-            label2Code->kind = LABEL_C;
-            label2Code->singleOp.op = label2;
+            InterCode label2Code = GenSingleOp(label2, LABEL_C);
             InsertCode(label2Code); // label2
 
             elseChild = elseChild->nextSibling;
             Stmt(elseChild, rtnType); // code3
 
-            InterCode label3Code = (InterCode)malloc(sizeof(InterCode_));
-            label3Code->kind = LABEL_C;
-            label3Code->singleOp.op = label3;
+            InterCode label3Code = GenSingleOp(label3, LABEL_C);
             InsertCode(label3Code); // label3
         }
     }
@@ -588,28 +602,20 @@ void Stmt(TreeNode* ptr, Type rtnType)
         TreeNode* expChild = nextChild->nextSibling;
         TreeNode* stmtChild = expChild->nextSibling->nextSibling;
 
-        InterCode label1Code = (InterCode)malloc(sizeof(InterCode_));
-        label1Code->kind = LABEL_C;
-        label1Code->singleOp.op = label1;
+        InterCode label1Code = GenSingleOp(label1, LABEL_C);
         InsertCode(label1Code); //label 1
 
         expType = ExpCond(expChild, label2, label3); //code 1
 
-        InterCode label2Code = (InterCode)malloc(sizeof(InterCode_));
-        label2Code->kind = LABEL_C;
-        label2Code->singleOp.op = label2;
+        InterCode label2Code = GenSingleOp(label2, LABEL_C);
         InsertCode(label2Code); //label 2
 
         Stmt(stmtChild, rtnType); //code 2
 
-        InterCode label1Goto = (InterCode)malloc(sizeof(InterCode_));
-        label1Goto->kind = GOTO_C;
-        label1Goto->singleOp.op = label1;
+        InterCode label1Goto = GenSingleOp(label1, GOTO_C);
         InsertCode(label1Goto);
 
-        InterCode label3Code = (InterCode)malloc(sizeof(InterCode_));
-        label3Code->kind = LABEL_C;
-        label3Code->singleOp.op = label3;
+        InterCode label3Code = GenSingleOp(label3, LABEL_C);
         InsertCode(label3Code); //label 3
     }
     else
@@ -706,16 +712,14 @@ void Dec(TreeNode* ptr, Type type, Origin origin, Type structSpecifier)
         }
         else if(strcmp(nextChild->m_identifier,"ASSIGNOP") == 0)
         {
-            //Dev -> VarDec ASSIGNOP Exp
+            //Dec -> VarDec ASSIGNOP Exp
             if(origin == O_StructSpecifier)
             {
                 printf("Error type 15 at Line %d: Invalid definition in structure.\n",child->m_lineno);
                 return;
             }
-            Operand place = (Operand)malloc(sizeof(Operand_));
-            place->kind = VARIABLE_O;
-            //place->value = 
-            Type expType = Exp(nextChild->nextSibling);
+            Operand place = NewTempVar();
+            Type expType = Exp(nextChild->nextSibling, place);
             if(TypeEqual(type,expType) == 0)
             {
                 printf("Error type 5 at Line %d: Type dismatched for assignment.\n",child->m_lineno);
@@ -748,8 +752,10 @@ Type Exp(TreeNode* ptr, Operand place)
         if(strcmp(op->m_identifier,"LB") == 0)
         {
             //Exp -> Exp LB Exp RB
-            Type typeA = Exp(expA);
-            Type typeB = Exp(expB);
+            Operand base = NewTempVar();
+            Operand offset = NewTempVar();
+            Type typeA = Exp(expA, base);
+            Type typeB = Exp(expB, offset);
             int flag = 0;
             if(typeA->kind != ARRAY)
             {
@@ -958,7 +964,7 @@ Type Exp(TreeNode* ptr, Operand place)
 
         Type expType = ExpCond(ptr, label1, label2); //code1
 
-        InterCode label1Code = GenSigleOp(label1, LABEL_C);
+        InterCode label1Code = GenSingleOp(label1, LABEL_C);
         InsertCode(label1Code); //label1
 
         Operand oneOp = NewConstant("1");
@@ -969,7 +975,7 @@ Type Exp(TreeNode* ptr, Operand place)
             InsertCode(code2);
         }
 
-        InterCode label2Code = GenSigleOp(label2, LABEL_C);
+        InterCode label2Code = GenSingleOp(label2, LABEL_C);
         InsertCode(label2Code);
     }
     else if(strcmp(child->m_identifier,"ID") == 0)
@@ -989,7 +995,7 @@ Type Exp(TreeNode* ptr, Operand place)
                 place->kind = VARIABLE_O;
                 place->value = child->idName;
             }
-
+            
             return symbol->type;
         }
         else
@@ -1018,7 +1024,7 @@ Type Exp(TreeNode* ptr, Operand place)
                 
                 if(strcmp(funSymbol->name,"write") == 0)
                 {
-                    InterCode writeCode = GenSigleOp(argsHead->next, WRITE_C);
+                    InterCode writeCode = GenSingleOp(argsHead->next, WRITE_C);
                     InsertCode(writeCode);
                 }
                 else
@@ -1027,7 +1033,7 @@ Type Exp(TreeNode* ptr, Operand place)
                     Operand argument = argsHead->next;
                     while (argument != NULL)
                     {
-                        InterCode argsCode = GenSigleOp(argument, ARGS_C);
+                        InterCode argsCode = GenSingleOp(argument, ARGS_C);
                         InsertCode(argsCode);
                         argument = argument->next;
                     }
@@ -1061,7 +1067,7 @@ Type Exp(TreeNode* ptr, Operand place)
                 {
                     if(place != NULL)
                     {
-                        InterCode readCode = GenSigleOp(place, READ_C);
+                        InterCode readCode = GenSingleOp(place, READ_C);
                         InsertCode(readCode);
                     }
                 }
@@ -1098,10 +1104,12 @@ Type Exp(TreeNode* ptr, Operand place)
         if(place != NULL)
         {
             place->kind = CONSTANT_O;
-            place->value = (char)malloc(20);
-            lab3Debug("itoa...");
-            sprintf(place->value,"%d",child->intValue);
-            lab3Debug("itoa done.");
+            //lab3Debug("itoa...");
+            char placeValue[20];
+            sprintf(placeValue,"%d",child->intValue);
+            place->value = (char*)malloc(20); //attention
+            strcpy(place->value, placeValue);
+            //lab3Debug("itoa done.");
         }
 
         return type;
@@ -1115,10 +1123,12 @@ Type Exp(TreeNode* ptr, Operand place)
         if(place != NULL)
         {
             place->kind = CONSTANT_O;
-            place->value = (char)malloc(20);
-            lab3Debug("ftoa...");
-            sprintf(place->value,"%f",child->floatValue);
-            lab3Debug("ftoa done.");
+            //lab3Debug("ftoa...");
+            char placeValue[20];
+            sprintf(placeValue,"%f",child->floatValue);
+            place->value = (char*)malloc(20); //attention
+            strcpy(place->value, placeValue);
+            //lab3Debug("ftoa done.");
         }
 
         return type;
@@ -1134,7 +1144,7 @@ Type ExpCond(TreeNode* ptr, Operand trueLabel, Operand falseLabel)
 {
     TreeNode* child = ptr->firstChild;
     TreeNode* nextChild = child->nextSibling;
-    if(strcmp(child->m_identifier,"EXP") == 0)
+    if(strcmp(child->m_identifier,"Exp") == 0)
     {
         TreeNode* Exp1 = child;
         TreeNode* Exp2 = nextChild->nextSibling;
@@ -1147,7 +1157,9 @@ Type ExpCond(TreeNode* ptr, Operand trueLabel, Operand falseLabel)
             Exp(Exp2, t2); //code2
             char *op = nextChild->idName;
             InterCode code3 = GenTripleOp(t1, t2, trueLabel, op);
-            InsertCode(code3);
+            InsertCode(code3); //code3
+            InterCode gotoFalseLabel = GenSingleOp(falseLabel, GOTO_C);
+            InsertCode(gotoFalseLabel); //goto label_false
         }
         else if(strcmp(nextChild->m_identifier,"AND") == 0)
         {
@@ -1163,7 +1175,7 @@ Type ExpCond(TreeNode* ptr, Operand trueLabel, Operand falseLabel)
             //Exp -> Exp OR Exp
             Operand label1 = NewLabel();
             ExpCond(Exp1, trueLabel, label1); //code1
-            InterCode label1Code = GenSingle(label1, LABEL_C);
+            InterCode label1Code = GenSingleOp(label1, LABEL_C);
             InsertCode(label1Code);
             ExpCond(Exp2, trueLabel, falseLabel); //code2
         }

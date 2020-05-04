@@ -31,6 +31,7 @@ TreeNode* CreateTreeNode(TreeNodeType type, int lineno, const char* identifier, 
         break;
     case TYPE_ID:
     case TYPE_STR:
+    case TYPE_RELOP:
         strcpy(node->idName, value);
         break;
     default:

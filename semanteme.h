@@ -41,5 +41,6 @@ int ArrayTypeEqual(Type typeA, Type typeB);
 
 void SematicDebug(TreeNode* ptr);
 void wDebug(const char* msg);
+void lab3Debug(const char* msg);
 
 #endif

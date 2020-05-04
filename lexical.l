@@ -95,7 +95,7 @@ WHILE while
     }
 
 {RELOP} {Debug("RELOP");
-    yylval.tree_node = CreateTreeNode(TYPE_OTHER_TERMINAL, yylineno, "RELOP", yytext);
+    yylval.tree_node = CreateTreeNode(TYPE_RELOP, yylineno, "RELOP", yytext);
     return RELOP;
     }
 

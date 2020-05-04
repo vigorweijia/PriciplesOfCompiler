@@ -3,6 +3,7 @@
 #include "tree.h"
 #include "syntax.tab.h"
 #include "semanteme.h"
+#include "IRCode.h"
 
 #define PRINT_TREE 1
 
@@ -31,6 +32,7 @@ int main(int argc, char** argv)
 #endif
 #endif
         Program(root);
+        InterCodePrint();
     }
     else
     {

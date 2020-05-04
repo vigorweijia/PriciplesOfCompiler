@@ -79,7 +79,7 @@ Operand NewTempVar()
     return tempVar;
 }
 
-Operand NewConstant(const char* v)
+Operand NewConstant(char* v)
 {
     Operand tempConstant = (Operand)malloc(sizeof(Operand_));
     memset(tempConstant, 0, sizeof(tempConstant));
@@ -89,7 +89,7 @@ Operand NewConstant(const char* v)
     return tempConstant;
 }
 
-Operand NewFunction(const char* funcName)
+Operand NewFunction(char* funcName)
 {
     Operand tempFunc = (Operand)malloc(sizeof(Operand_));
     memset(tempFunc, 0, sizeof(tempFunc));
@@ -97,6 +97,16 @@ Operand NewFunction(const char* funcName)
     tempFunc->value = funcName;
     tempFunc->next = NULL;
     return tempFunc;
+}
+
+Operand NewVariable(char* varName)
+{
+    Operand tempVar = (Operand)malloc(sizeof(Operand_));
+    memset(tempVar, 0, sizeof(tempVar));
+    tempVar->kind = VARIABLE_O;
+    tempVar->value = varName;
+    tempVar->next = NULL;
+    return tempVar;
 }
 
 InterCode GenSingleOp(Operand op, InterCodeType t)
@@ -119,7 +129,7 @@ InterCode GenDoubleOp(Operand result, Operand op1, Operand op2, InterCodeType t)
     return tempCode;
 }
 
-InterCode GenTripleOp(Operand op1, Operand op2, Operand label, const char* opr)
+InterCode GenTripleOp(Operand op1, Operand op2, Operand label, char* opr)
 {
     InterCode tempCode = (InterCode)malloc(sizeof(InterCode_));
     memset(tempCode, 0, sizeof(InterCode_));
@@ -150,6 +160,11 @@ InterCode GenCall(Operand left, Operand right)
     tempCode->assign.left = left;
     tempCode->assign.right = right;
     return tempCode;
+}
+
+void InterCodeEndLine()
+{
+    printf("\n");
 }
 
 void InterCodePrinter(const char* msg)
@@ -243,6 +258,7 @@ void InterCodePrint()
             InterCodePrinter("IF ");
             OperandPrint(p->tripleOp.op1);
             InterCodePrinter(p->tripleOp.opr);
+            InterCodePrinter(" ");
             OperandPrint(p->tripleOp.op2);
             InterCodePrinter("GOTO ");
             OperandPrint(p->tripleOp.label);
@@ -251,6 +267,7 @@ void InterCodePrint()
             assert(0);
             break;
         }
+        InterCodeEndLine();
         p = p->next;
     }
     

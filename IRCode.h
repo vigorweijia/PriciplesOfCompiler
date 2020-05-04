@@ -6,7 +6,7 @@ typedef struct InterCode_* InterCode;
 typedef int InterCodeType;
 
 typedef struct Operand_{
-    enum{UNKOWN_O, VARIABLE_O, CONSTANT_O, CONSTANT_O, ADDRESS_O, FUNCTION_O, TEMPORARY_O, LABEL_O} kind;
+    enum{UNKOWN_O, VARIABLE_O, CONSTANT_O, ADDRESS_O, FUNCTION_O, TEMPORARY_O, LABEL_O} kind;
     union{
         int varNo;
         char* value; //do not split int/float at this time, seen as str
@@ -31,12 +31,13 @@ void DeleteCode(InterCode);
 
 Operand NewLabel();
 Operand NewTempVar();
-Operand NewConstant(const char* v);
-Operand NewFunction(const char* funcName);
+Operand NewConstant(char* v);
+Operand NewFunction(char* funcName);
+Operand NewVariable(char* varName);
 
-InterCode GenSingleOp(Operand,InterCodeType);
+InterCode GenSingleOp(Operand op, InterCodeType t);
 InterCode GenDoubleOp(Operand result,Operand op1,Operand op2,InterCodeType t);
-InterCode GenTripleOp(Operand op1,Operand op2,Operand label,const char *opr);
+InterCode GenTripleOp(Operand op1,Operand op2,Operand label,char *opr);
 InterCode GenAssign(Operand left,Operand right);
 InterCode GenCall(Operand left,Operand right);
 
