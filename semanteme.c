@@ -1294,7 +1294,21 @@ Type ExpCond(TreeNode* ptr, Operand trueLabel, Operand falseLabel)
         }
         else
         {
-            assert(0);
+            //printf("%s\n",nextChild->m_identifier);
+
+            Operand t1 = NewTempVar();
+            Exp(ptr, t1); //code1
+
+            Operand t2 = NewConstant("0");
+
+            char* op = malloc(20);
+            strcpy(op,"!=");
+
+            InterCode code2 = GenTripleOp(t1,t2,trueLabel,op);
+            InsertCode(code2); //code2
+
+            InterCode falseLabelCode = GenSingleOp(falseLabel, GOTO_C);
+            InsertCode(falseLabelCode); //GOTO label_false
         }
     }
     else if(strcmp(child->m_identifier,"NOT") == 0)
@@ -1303,7 +1317,19 @@ Type ExpCond(TreeNode* ptr, Operand trueLabel, Operand falseLabel)
     }
     else
     {
-        assert(0);
+        Operand t1 = NewTempVar();
+        Exp(ptr, t1); //code1
+
+        Operand t2 = NewConstant("0");
+
+        char* op = malloc(20);
+        strcpy(op,"!=");
+
+        InterCode code2 = GenTripleOp(t1,t2,trueLabel,op);
+        InsertCode(code2); //code2
+
+        InterCode falseLabelCode = GenSingleOp(falseLabel, GOTO_C);
+        InsertCode(falseLabelCode); //GOTO label_false
     }
 }
 

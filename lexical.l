@@ -44,7 +44,7 @@ ID {LETTER}({LETTER}|{DIGIT})*
 SEMI ;
 COMMA ,
 ASSIGNOP =
-RELOP >|<|==|>=|<=
+RELOP >|<|==|>=|<=|!=
 PLUS \+
 MINUS -
 STAR \*
