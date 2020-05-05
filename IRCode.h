@@ -1,6 +1,8 @@
 #ifndef __IRCODE_H__
 #define __IRCODE_H__
 
+#define PrintToConsole 1
+
 typedef struct Operand_* Operand;
 typedef struct InterCode_* InterCode;
 typedef int InterCodeType;
@@ -44,8 +46,8 @@ InterCode GenAssign(Operand left,Operand right);
 InterCode GenCall(Operand left,Operand right);
 InterCode GenAddr(Operand left,Operand right);
 
-void InterCodePrint();
-void OperandPrint(Operand op);
+void InterCodePrint(const char* outputFileName);
+void OperandPrint(Operand op, FILE* fp);
 
 extern int gTempVarCount;
 extern int gLabelCount;

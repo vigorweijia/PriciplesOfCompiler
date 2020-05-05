@@ -32,7 +32,7 @@ int main(int argc, char** argv)
 #endif
 #endif
         Program(root);
-        InterCodePrint();
+        InterCodePrint(argv[2]);
     }
     else
     {

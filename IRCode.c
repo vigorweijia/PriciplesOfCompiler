@@ -172,153 +172,188 @@ InterCode GenAddr(Operand left, Operand right)
     return tempAddr;
 }
 
-void InterCodeEndLine()
+void InterCodeEndLine(FILE* fp)
 {
+#ifdef PrintToConsole
     printf("\n");
+#endif
+    fprintf(fp,"\n");
 }
 
-void InterCodePrinter(const char* msg)
+void InterCodePrinter(const char* msg, FILE* fp)
 {
+#ifdef PrintToConsole
     printf("%s",msg);
+#endif
+    fprintf(fp,"%s",msg);
 }
 
-void InterCodePrintCal(InterCode p)
+void InterCodePrintCal(InterCode p, FILE* fp)
 {
-    OperandPrint(p->doubleOp.result);
-    InterCodePrinter(":= ");
-    OperandPrint(p->doubleOp.op1);
+    OperandPrint(p->doubleOp.result, fp);
+    InterCodePrinter(":= ", fp);
+    OperandPrint(p->doubleOp.op1, fp);
     switch (p->kind)
     {
     case ADD_C:
-        InterCodePrinter("+ ");
+        InterCodePrinter("+ ", fp);
         break;
     case SUB_C:
-        InterCodePrinter("- ");
+        InterCodePrinter("- ", fp);
         break;
     case MUL_C:
-        InterCodePrinter("* ");
+        InterCodePrinter("* ", fp);
         break;
     case DIV_C:
-        InterCodePrinter("/ ");
+        InterCodePrinter("/ ", fp);
         break;
     default:
         break;
     } 
-    OperandPrint(p->doubleOp.op2);
+    OperandPrint(p->doubleOp.op2, fp);
 }
 
-void InterCodePrint()
+void InterCodePrint(const char* outputFileName)
 {
+    FILE* fp = fopen(outputFileName, "w");
+    if(fp == NULL)
+    {
+        printf("Cannot open file %s.\n",outputFileName);
+        exit(-1);
+    }
     InterCode p = gInterCodeHead;
     while (p != NULL)
     {
         switch(p->kind)
         {
             case ASSIGN_C:
-            OperandPrint(p->assign.left);
-            InterCodePrinter(":= ");
-            OperandPrint(p->assign.right);
+            OperandPrint(p->assign.left, fp);
+            InterCodePrinter(":= ", fp);
+            OperandPrint(p->assign.right, fp);
             break;
             case ADD_C:
             case SUB_C:
             case MUL_C:
             case DIV_C:
-            InterCodePrintCal(p);
+            InterCodePrintCal(p, fp);
             break;
             case FUNCTION_C:
-            InterCodePrinter("FUNCTION ");
-            OperandPrint(p->singleOp.op);
-            InterCodePrinter(":");
+            InterCodePrinter("FUNCTION ", fp);
+            OperandPrint(p->singleOp.op, fp);
+            InterCodePrinter(":", fp);
             break;
             case PARAM_C:
-            InterCodePrinter("PARAM ");
-            OperandPrint(p->singleOp.op);
+            InterCodePrinter("PARAM ", fp);
+            OperandPrint(p->singleOp.op, fp);
             break;
             case RETURN_C:
-            InterCodePrinter("RETURN ");
-            OperandPrint(p->singleOp.op);
+            InterCodePrinter("RETURN ", fp);
+            OperandPrint(p->singleOp.op, fp);
             break;
             case LABEL_C:
-            InterCodePrinter("LABEL ");
-            OperandPrint(p->singleOp.op);
-            InterCodePrinter(": ");
+            InterCodePrinter("LABEL ", fp);
+            OperandPrint(p->singleOp.op, fp);
+            InterCodePrinter(": ", fp);
             break;
             case GOTO_C:
-            InterCodePrinter("GOTO ");
-            OperandPrint(p->singleOp.op);
+            InterCodePrinter("GOTO ", fp);
+            OperandPrint(p->singleOp.op, fp);
             break;
             case READ_C:
-            InterCodePrinter("READ ");
-            OperandPrint(p->singleOp.op);
+            InterCodePrinter("READ ", fp);
+            OperandPrint(p->singleOp.op, fp);
             break;
             case WRITE_C:
-            InterCodePrinter("WRITE ");
-            OperandPrint(p->singleOp.op);
+            InterCodePrinter("WRITE ", fp);
+            OperandPrint(p->singleOp.op, fp);
             break;
             case CALL_C:
-            OperandPrint(p->assign.left);
-            InterCodePrinter(":= CALL ");
-            OperandPrint(p->assign.right);
+            OperandPrint(p->assign.left, fp);
+            InterCodePrinter(":= CALL ", fp);
+            OperandPrint(p->assign.right, fp);
             break;
             case ARGS_C:
-            InterCodePrinter("ARG ");
-            OperandPrint(p->singleOp.op);
+            InterCodePrinter("ARG ", fp);
+            OperandPrint(p->singleOp.op, fp);
             break;
             case IFGOTO_C:
-            InterCodePrinter("IF ");
-            OperandPrint(p->tripleOp.op1);
-            InterCodePrinter(p->tripleOp.opr);
-            InterCodePrinter(" ");
-            OperandPrint(p->tripleOp.op2);
-            InterCodePrinter("GOTO ");
-            OperandPrint(p->tripleOp.label);
+            InterCodePrinter("IF ", fp);
+            OperandPrint(p->tripleOp.op1, fp);
+            InterCodePrinter(p->tripleOp.opr, fp);
+            InterCodePrinter(" ", fp);
+            OperandPrint(p->tripleOp.op2, fp);
+            InterCodePrinter("GOTO ", fp);
+            OperandPrint(p->tripleOp.label, fp);
             break;
             case DEC_C:
-            InterCodePrinter("DEC ");
-            OperandPrint(p->dec.op);
-            printf("%d",p->dec.size);
+            InterCodePrinter("DEC ", fp);
+            OperandPrint(p->dec.op, fp);
+            char* sizeStr = (char*)malloc(20);
+            sprintf(sizeStr,"%d",p->dec.size);
+            InterCodePrinter(sizeStr, fp);
             break;
             case ADDR_C:
-            OperandPrint(p->assign.left);
-            InterCodePrinter(":= &");
-            OperandPrint(p->assign.right);
+            OperandPrint(p->assign.left, fp);
+            InterCodePrinter(":= &",fp);
+            OperandPrint(p->assign.right,fp);
             break;
             default:
             assert(0);
             break;
         }
-        InterCodeEndLine();
+        InterCodeEndLine(fp);
         p = p->next;
     }
     
 }
 
-void OperandPrint(Operand op)
+void OperandPrint(Operand op, FILE* fp)
 {
     if(op == NULL) assert(0);
     switch (op->kind)
     {
     case VARIABLE_O:
     assert(op->value != NULL);
+#ifdef PrintToConsole
     printf("%s ",op->value);
+#endif
+    fprintf(fp,"%s ",op->value);
     break;
     case CONSTANT_O:
+#ifdef PrintToConsole
     printf("#%s ",op->value);
+#endif
+    fprintf(fp,"#%s ",op->value);
     break;
     case FUNCTION_O:
+#ifdef PrintToConsole
     printf("%s ",op->value);
+#endif
+    fprintf(fp,"%s ",op->value);
     break;
     case TEMPORARY_O:
+#ifdef PrintToConsole
     printf("t%d ",op->varNo);
+#endif
+    fprintf(fp,"t%d ",op->varNo);
     break;
     case LABEL_O:
+#ifdef PrintToConsole
     printf("label%d ",op->varNo);
+#endif
+    fprintf(fp,"label%d ",op->varNo);
     break;
     case VADDR_O:
+#ifdef PrintToConsole
     printf("*%s ",op->value);
+#endif
+    fprintf(fp,"*%s ",op->value);
     break;
     case TADDR_O:
+#ifdef PrintToConsole
     printf("*t%d ",op->varNo);
+#endif
+    fprintf(fp,"*t%d ",op->varNo);
     break;
     default:
     assert(0);

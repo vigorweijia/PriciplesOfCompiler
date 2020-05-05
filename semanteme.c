@@ -1323,6 +1323,11 @@ void Args(TreeNode* ptr, FieldList param, Operand args)
         tp->next = args->next;
         args->next = tp;
         wDebug("get type succ at args");
+        if(type->kind == ARRAY)
+        {
+            printf("Connot translate: Parameter contains array.\n");
+            exit(-1);
+        }
         if(param == NULL) assert(0);
         if(TypeEqual(type,param->type) == 0)
         {
