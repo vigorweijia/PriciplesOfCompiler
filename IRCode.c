@@ -162,6 +162,16 @@ InterCode GenCall(Operand left, Operand right)
     return tempCode;
 }
 
+InterCode GenAddr(Operand left, Operand right)
+{
+    InterCode tempAddr = (InterCode)malloc(sizeof(InterCode_));
+    memset(tempAddr, 0, sizeof(InterCode_));
+    tempAddr->kind = ADDR_C;
+    tempAddr->assign.left = left;
+    tempAddr->assign.right = right;
+    return tempAddr;
+}
+
 void InterCodeEndLine()
 {
     printf("\n");
@@ -263,6 +273,16 @@ void InterCodePrint()
             InterCodePrinter("GOTO ");
             OperandPrint(p->tripleOp.label);
             break;
+            case DEC_C:
+            InterCodePrinter("DEC ");
+            OperandPrint(p->dec.op);
+            printf("%d",p->dec.size);
+            break;
+            case ADDR_C:
+            OperandPrint(p->assign.left);
+            InterCodePrinter(":= &");
+            OperandPrint(p->assign.right);
+            break;
             default:
             assert(0);
             break;
@@ -285,8 +305,6 @@ void OperandPrint(Operand op)
     case CONSTANT_O:
     printf("#%s ",op->value);
     break;
-    case ADDRESS_O:
-    break;
     case FUNCTION_O:
     printf("%s ",op->value);
     break;
@@ -295,6 +313,12 @@ void OperandPrint(Operand op)
     break;
     case LABEL_O:
     printf("label%d ",op->varNo);
+    break;
+    case VADDR_O:
+    printf("*%s ",op->value);
+    break;
+    case TADDR_O:
+    printf("*t%d ",op->varNo);
     break;
     default:
     assert(0);

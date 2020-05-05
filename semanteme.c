@@ -90,22 +90,16 @@ void ExtDef(TreeNode *ptr)
         assert(func != NULL);
 
         Operand funcOp = (Operand)malloc(sizeof(Operand_));
-        funcOp->kind = FUNCTION;
+        funcOp->kind = FUNCTION_O;
         funcOp->value = func->function.funcName;
-        InterCode funcCode = (InterCode)malloc(sizeof(InterCode_));
-        funcCode->kind = FUNCTION_C;
-        funcCode->singleOp.op = funcOp;
+        InterCode funcCode = GenSingleOp(funcOp, FUNCTION_C);
         InsertCode(funcCode);
 
         FieldList funcParam = func->function.params;
         while (funcParam != NULL)
         {
-            Operand paramOp = (Operand)malloc(sizeof(Operand_));
-            paramOp->kind = VARIABLE_O;
-            paramOp->value = funcParam->name;
-            InterCode paramCode = (InterCode)malloc(sizeof(InterCode_));
-            paramCode->kind = PARAM_C;
-            paramCode->singleOp.op = paramOp;
+            Operand paramOp = NewVariable(funcParam->name);
+            InterCode paramCode = GenSingleOp(paramOp, PARAM_C);
             InsertCode(paramCode);
 
             funcParam = funcParam->next;
@@ -294,7 +288,19 @@ void VarDec(TreeNode* ptr, Type type, Origin origin, Type structSpecifier)
             {
                 printf("Error type 3 at Line %d: (I)Redefined variable \"%s\".\n",child->m_lineno,child->idName);
             }
-            //printf("insert secc\n");
+            if(type->kind == STRUCTURE || type->kind == ARRAY)
+            {
+                Operand op = NewTempVar();
+                InterCode decCode = (InterCode)malloc(sizeof(InterCode_));
+                decCode->kind = DEC_C;
+                decCode->dec.op = op;
+                decCode->dec.size = GetTypeSize(type);
+                InsertCode(decCode);
+
+                Operand v = NewVariable(child->idName);
+                InterCode addrCode = GenAddr(v, op);
+                InsertCode(addrCode);
+            }
             break;
         case O_StructSpecifier:
             {
@@ -725,6 +731,10 @@ void Dec(TreeNode* ptr, Type type, Origin origin, Type structSpecifier)
                 printf("Error type 5 at Line %d: Type dismatched for assignment.\n",child->m_lineno);
                 return;
             }
+            //TODO: VarDec return something
+            Operand op = NewVariable(child->firstChild->idName);
+            InterCode initCode = GenAssign(op, place);
+            InsertCode(initCode);
         }
         else
         {
@@ -752,10 +762,17 @@ Type Exp(TreeNode* ptr, Operand place)
         if(strcmp(op->m_identifier,"LB") == 0)
         {
             //Exp -> Exp LB Exp RB
-            Operand base = NewTempVar();
-            Operand offset = NewTempVar();
-            Type typeA = Exp(expA, base);
-            Type typeB = Exp(expB, offset);
+            Operand arryBase = NewTempVar();
+            Operand offsetOp = NewTempVar();
+            Type typeA = Exp(expA, arryBase);
+
+            int offset = 1;
+            if(strcmp(expB->firstChild->m_identifier,"INT") == 0)
+            {
+                offset = expB->firstChild->intValue;
+            }
+
+            Type typeB = Exp(expB, offsetOp);
             int flag = 0;
             if(typeA->kind != ARRAY)
             {
@@ -773,16 +790,60 @@ Type Exp(TreeNode* ptr, Operand place)
                 if(gError == NULL) wDebug("gError is null");
                 return gError;
             }
-            else 
+
+            if(offset != 0)
             {
-                return typeA->array.elem;
+                int width = GetTypeSize(typeA->array.elem);
+                char* widthStr = (char*)malloc(20);
+                sprintf(widthStr,"%d",width);
+                Operand widthCode = NewConstant(widthStr);
+
+                Operand realOffsetOp = NewTempVar();   
+
+                InterCode realOffsetCode = GenDoubleOp(realOffsetOp, offsetOp, widthCode, MUL_C);
+                InsertCode(realOffsetCode);
+
+                InterCode addrCode = NULL;
+                if(typeA->array.elem->kind == BASIC)
+                {
+                    Operand tempCode = NewTempVar();
+                    addrCode = GenDoubleOp(tempCode, arryBase, realOffsetOp, ADD_C);
+
+                    place->value = tempCode->value;
+                    place->kind = TADDR_O;
+                }
+                else
+                {
+                    addrCode = GenDoubleOp(place, arryBase, realOffsetOp, ADD_C);
+                }
+                InsertCode(addrCode);
             }
+            else
+            {
+                InterCode addrCode = NULL;
+                if(typeA->array.elem->kind == BASIC)
+                {
+                    Operand tempCode = NewTempVar();
+                    addrCode = GenAssign(tempCode, arryBase);
+
+                    place->value = tempCode->value;
+                    place->kind = TADDR_O;
+                }
+                else
+                {
+                    addrCode = GenAssign(place, arryBase);
+                }
+                InsertCode(addrCode);
+            }
+            
+
+            return typeA->array.elem;
         }
         else if(strcmp(op->m_identifier,"DOT") == 0)
         {
             //Exp -> Exp DOT ID
-            Operand structVar = NewTempVar();
-            Type typeA = Exp(expA, structVar);
+            Operand structBase = NewTempVar();
+            Type typeA = Exp(expA, structBase);
             if(typeA == NULL) wDebug("NULL Detected");
             if(typeA->kind != STRUCTURE)
             {
@@ -796,12 +857,64 @@ Type Exp(TreeNode* ptr, Operand place)
                 printf("Error type 14 at Line %d: Non-existent field \"%s\".\n",expB->m_lineno,expB->idName);
                 return gError;
             }
+
+            int offset = 0;
+            FieldList field = typeA->structure;
+            while(field != NULL)
+            {
+                if(strcmp(expB->idName, field->name) == 0)
+                {
+                    if(offset == 0)
+                    {
+                        if(place != NULL)
+                        {
+                            if(field->type->kind == BASIC)
+                            {
+                                place->value = structBase->value;
+                                place->kind = VADDR_O;
+                            }
+                            else
+                            {
+                                memcpy(place, structBase, sizeof(Operand_));
+                            }
+                        }
+                    }
+                    else
+                    {
+                        Operand offsetOp = NULL;
+                        char *offsetStr = (char*)malloc(20);
+                        sprintf(offsetStr,"%d",offset);
+                        offsetOp = NewConstant(offsetStr);
+
+                        if(place != NULL) 
+                        {
+                            InterCode addCode = NULL;
+                            if(field->type->kind == BASIC)
+                            {
+                                Operand tempAddr = NewTempVar();
+                                addCode = GenDoubleOp(tempAddr, structBase, offsetOp, ADD_C);
+                                place->varNo = tempAddr->varNo;
+                                place->kind = TADDR_O;
+                            }
+                            else
+                            {
+                                addCode = GenDoubleOp(place, structBase, offsetOp, ADD_C);
+                            }
+                            InsertCode(addCode);
+                        }
+                    }
+                }
+                offset += GetTypeSize(field->type);
+                field = field->next;
+            }
+
             return memberSymbol->type;
         }
         else 
         {
             Operand leftOp = NewTempVar();
             Operand rightOp = NewTempVar();
+            //printf("%d %d\n",leftOp->varNo,rightOp->varNo);
             Type typeA = Exp(expA, leftOp);
             Type typeB = Exp(expB, rightOp);
             wDebug("Get type succ");
@@ -1287,6 +1400,39 @@ int ArrayTypeEqual(Type typeA, Type typeB)
     else if(typeA->kind == STRUCTURE)
     {
         return StructTypeEqual(typeA, typeB);
+    }
+}
+
+int GetTypeSize(Type type)
+{
+    if(type->kind == BASIC || type->kind == FUNCTION)
+    {
+        return 4;
+    }
+    else if(type->kind == STRUCTURE)
+    {
+        int tempSize = 0;
+        FieldList field = type->structure;
+        while (field != NULL)
+        {
+            tempSize += GetTypeSize(field->type);
+            field = field->next;
+        }
+        return tempSize;
+    }
+    else if(type->kind == ARRAY)
+    {
+        if(type->array.elem->kind == ARRAY)
+        {
+            //high dimension
+            printf("Cannot translate: Code contains variables of multi-dimensional array type or parameters of array type.\n");
+            exit(0);
+        }
+        return type->array.size * GetTypeSize(type->array.elem);
+    }
+    else
+    {
+        assert(0);
     }
 }
 

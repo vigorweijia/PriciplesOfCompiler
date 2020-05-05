@@ -38,6 +38,7 @@ void Args(TreeNode *ptr, FieldList param, Operand args);
 int TypeEqual(Type typeA, Type typeB);
 int StructTypeEqual(Type typeA, Type typeB);
 int ArrayTypeEqual(Type typeA, Type typeB);
+int GetTypeSize(Type type);
 
 void SematicDebug(TreeNode* ptr);
 void wDebug(const char* msg);
