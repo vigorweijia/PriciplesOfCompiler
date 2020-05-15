@@ -1,7 +1,7 @@
 #ifndef __IRCODE_H__
 #define __IRCODE_H__
 
-#define PrintToConsole 1
+//#define PrintToConsole 1
 
 typedef struct Operand_* Operand;
 typedef struct InterCode_* InterCode;
