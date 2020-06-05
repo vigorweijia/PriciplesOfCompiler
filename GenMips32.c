@@ -2,6 +2,8 @@
 
 #include "GenMips32.h"
 
+extern int gStackFrameSize;
+
 void MipsPrint(const char* fileName)
 {
     mipsFp = fopen(fileName, "w");
@@ -147,7 +149,8 @@ void Mips4Assign(InterCode p)
     {
         assert(0);
     }
-    
+
+    Reg2Mem(rx);
 }
 
 void Mips4Op(InterCode p)
@@ -226,6 +229,8 @@ void Mips4Op(InterCode p)
         //TODO: x := #y + #z
         assert(0);
     }
+
+    Reg2Mem(rx);
 }
 
 void Mips4Func(InterCode p)
@@ -233,10 +238,34 @@ void Mips4Func(InterCode p)
 
 }
 
+void Mips4Param(InterCode p)
+{
+
+}
+
+void Mips4Return(InterCode p)
+{
+    Operand op = p->singleOp.op;
+    Register rx;
+    if(op->kind == CONSTANT_O)
+    {
+        fprintf(mipsFp, "  move $v0, %s\n", op->value);
+    }
+    else if(op->kind == VARIABLE_O || op->kind == CONSTANT_O)
+    {
+        rx = AssignRegister(op);
+        fprintf(mipsFp, "  move $v0, %s\n", GetStrRegister(rx));
+    }
+    fprintf(mipsFp, "  addi $sp, $sp, %d\n", gStackFrameSize);
+    fprintf(mipsFp, "  lw $fp, 0($sp)\n");
+    fprintf(mipsFp, "  addi $sp, $sp, 4\n");
+    fprintf(mipsFp, "  jr $ra\n");
+}
+
 void Mips4Label(InterCode p)
 {
     Operand op = p->singleOp.op;
-    fprintf(mipsFp, "%s:\n", op->value);
+    fprintf(mipsFp, "%label%d:\n", op->varNo);
 }
 
 void Mips4Goto(InterCode p)
@@ -245,9 +274,253 @@ void Mips4Goto(InterCode p)
     fprintf(mipsFp, "  j %s\n", op->value);
 }
 
+void Mips4Read(InterCode p)
+{
+    Operand op = p->singleOp.op;
+    Register rx = AssignRegister(op);
+    //addi $sp, $sp, -4
+    //sw $ra, 0($sp)
+    //jal read
+    //move r(x), $v0
+    //sw r(x)
+    //lw $ra, 0($sp)
+    //addi $sp, $sp, 4
+    fprintf(mipsFp, "  addi $sp, $sp, -4\n");
+    fprintf(mipsFp, "  sw $ra, 0($sp)\n");
+    fprintf(mipsFp, "  jal read\n");
+    fprintf(mipsFp, "  move %s, $v0\n", GetStrRegister(rx));
+    Reg2Mem(rx);
+    fprintf(mipsFp, "  lw $ra, 0($sp)\n");
+    fprintf(mipsFp, "  addi $sp, $sp, 4\n");
+}
+
+void Mips4Write(InterCode p)
+{
+    Operand op = p->singleOp.op;
+    Register rx = AssignRegister(op);
+    //move $a0, r(x)
+    //sw r(x)
+    //addi $sp, $sp, -4
+    //sw $ra, 0($sp)
+    //jal write
+    //lw $ra, 0($sp)
+    //addi $sp, $sp, 4
+    if(op->kind == TEMPORARY_O || op->kind == VARIABLE_O)
+    {
+        fprintf(mipsFp, "  move $a0, %s\n", GetStrRegister(rx));
+    }
+    else if(op->kind == TADDR_O || op->kind == VADDR_O)
+    {
+        fprintf(mipsFp, "  lw $a0, 0(%s)\n", GetStrRegister(rx));
+    }
+    else assert(0);
+    Reg2Mem(rx);
+    fprintf(mipsFp, "  addi $sp, $sp, -4\n");
+    fprintf(mipsFp, "  sw $ra, 0($sp)\n");
+    fprintf(mipsFp, "  jal write\n");
+    fprintf(mipsFp, "  lw $ra, 0($sp)\n");
+    fprintf(mipsFp, "  addi $sp, $sp, 4\n");
+}
+
 void Mips4Call(InterCode p)
 {
     Operand left = p->assign.left;
     Operand right = p->assign.right;
-    
+    Register rx = AssignRegister(left);
+    //x := CALL f
+    //addi $sp, $sp, -4
+    //sw $ra, 0($sp)
+    //jal f
+    //move r(x), $v0
+    //sw r(x), 
+    //lw $ra, 0($sp)
+    //addi $sp, $sp, 4
+    fprintf(mipsFp, "  addi $sp, $sp, -4\n");
+    fprintf(mipsFp, "  sw $ra, 0($sp)\n");
+    fprintf(mipsFp, "  jal %s\n", right->value);
+    fprintf(mipsFp, "  move %s, $v0\n", GetStrRegister(rx));
+    Reg2Mem(rx);
+    fprintf(mipsFp, "  lw $ra, 0($sp)\n");
+    fprintf(mipsFp, "  addi $sp, $sp, 4\n");
+}
+
+void Mips4Args(InterCode p)
+{
+
+}
+
+void Mips4Ifgoto(InterCode p)
+{
+    Operand op1 = p->tripleOp.op1;
+    Operand op2 = p->tripleOp.op2;
+    Operand label = p->tripleOp.label;
+    char* opr = p->tripleOp.opr;
+    Register rx, ry;
+
+    if((op1->kind == TEMPORARY_O || op1->kind == VARIABLE_O) && (op2->kind == TEMPORARY_O && op2->kind == VARIABLE_O))
+    {
+        rx = AssignRegister(op1);
+        ry = AssignRegister(op2);
+        if(opr[0] == '=')
+        {
+            //IF x == y GOTO z
+            //beq r(x), r(y), z
+            fprintf(mipsFp, "  beq %s, %s, %s\n",GetStrRegister(rx),GetStrRegister(ry),label->value);
+        }
+        else if(opr[0] == '>')
+        {
+            if(opr[1] == '=')
+            {
+                //IF x >= y GOTO z
+                //bge r(x), r(y), z
+                fprintf(mipsFp, "  bge %s, %s, %s\n",GetStrRegister(rx),GetStrRegister(ry),label->value);
+            }
+            else
+            {
+                //IF x > y GOTO z
+                //bgt r(x), r(y), z
+                fprintf(mipsFp, "  bgt %s, %s, %s\n",GetStrRegister(rx),GetStrRegister(ry),label->value);
+            }   
+        }
+        else if(opr[0] == '<')
+        {
+            if(opr[1] == '=')
+            {
+                //IF x <= y GOTO z
+                //ble r(x), r(y), z
+                fprintf(mipsFp, "  ble %s, %s, %s\n",GetStrRegister(rx),GetStrRegister(ry),label->value);
+            }
+            else
+            {
+                //IF x < y GOTO z
+                //blt r(x), r(y), z
+                fprintf(mipsFp, "  blt %s, %s, %s\n",GetStrRegister(rx),GetStrRegister(ry),label->value);
+            }
+        }
+        else if(opr[0] == '!')
+        {
+            //IF x != y GOTO z
+            //bne r(x), r(y), z
+            fprintf(mipsFp, "  bne %s, %s, %s\n",GetStrRegister(rx),GetStrRegister(ry),label->value);
+        }
+        else assert(0);   
+    }
+    else if((op1->kind == TEMPORARY_O || op1->kind == VARIABLE_O) && op2->kind == CONSTANT_O)
+    {
+        rx = AssignRegister(op1);
+        if(opr[0] == '=')
+        {
+            //IF x == #k GOTO z
+            //beq r(x), k, z
+            fprintf(mipsFp, "  beq %s, %s, %s\n",GetStrRegister(rx),op2->value,label->value);
+        }
+        else if(opr[0] == '>')
+        {
+            if(opr[1] == '=')
+            {
+                //IF x >= #k GOTO z
+                //bge r(x), k, z
+                fprintf(mipsFp, "  bge %s, %s, %s\n",GetStrRegister(rx),op2->value,label->value);
+            }
+            else
+            {
+                //IF x > #k GOTO z
+                //bgt r(x), r(y), z
+                fprintf(mipsFp, "  bgt %s, %s, %s\n",GetStrRegister(rx),op2->value,label->value);
+            }   
+        }
+        else if(opr[0] == '<')
+        {
+            if(opr[1] == '=')
+            {
+                //IF x <= #k GOTO z
+                //ble r(x), k, z
+                fprintf(mipsFp, "  ble %s, %s, %s\n",GetStrRegister(rx),op2->value,label->value);
+            }
+            else
+            {
+                //IF x < #k GOTO z
+                //blt r(x), k, z
+                fprintf(mipsFp, "  blt %s, %s, %s\n",GetStrRegister(rx),op2->value,label->value);
+            }
+        }
+        else if(opr[0] == '!')
+        {
+            //IF x != #k GOTO z
+            //bne r(x), k, z
+            fprintf(mipsFp, "  bne %s, %s, %s\n",GetStrRegister(rx),op2->value,label->value);
+        }
+        else assert(0);   
+    }
+    else if(op1->kind == CONSTANT_O && (op2->kind == TEMPORARY_O || op2->kind == VARIABLE_O))
+    {
+        ry = AssignRegister(op2);
+        if(opr[0] == '=')
+        {
+            //IF #k == y GOTO z
+            //beq r(y), k, z
+            fprintf(mipsFp, "  beq %s, %s, %s\n",GetStrRegister(ry),op1->value,label->value);
+        }
+        else if(opr[0] == '>')
+        {
+            if(opr[1] == '=')
+            {
+                //IF #k >= y GOTO z
+                //ble r(y), k, z
+                fprintf(mipsFp, "  ble %s, %s, %s\n",GetStrRegister(ry),op1->value,label->value);
+            }
+            else
+            {
+                //IF #k > y GOTO z
+                //bgt r(y), k, z
+                fprintf(mipsFp, "  blt %s, %s, %s\n",GetStrRegister(ry),op1->value,label->value);
+            }   
+        }
+        else if(opr[0] == '<')
+        {
+            if(opr[1] == '=')
+            {
+                //IF #k <= y GOTO z
+                //bge r(y), k, z
+                fprintf(mipsFp, "  bge %s, %s, %s\n",GetStrRegister(ry),op1->value,label->value);
+            }
+            else
+            {
+                //IF #k < y GOTO z
+                //bgt r(y), k, z
+                fprintf(mipsFp, "  bgt %s, %s, %s\n",GetStrRegister(ry),op1->value,label->value);
+            }
+        }
+        else if(opr[0] == '!')
+        {
+            //IF #k != y GOTO z
+            //bne r(y), k, z
+            fprintf(mipsFp, "  bne %s, %s, %s\n",GetStrRegister(ry),op1->value,label->value);
+        }
+        else assert(0);   
+    }
+    else
+    {
+        assert(0);
+    }
+}
+
+void Mips4Dec(InterCode p)
+{
+
+}
+
+void Mips4Addr(InterCode p)
+{
+
+}
+
+Register AssignRegister(Operand op)
+{
+
+}
+
+char* GetStrRegister(Register r)
+{
+
 }

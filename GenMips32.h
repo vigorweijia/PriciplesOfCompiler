@@ -8,6 +8,13 @@
 FILE* mipsFp;
 
 typedef int Register;
+typedef struct RegInfo_* RegInfo;
+
+typedef struct RegInfo_{
+    char* name;
+    Register reg;
+    RegInfo next;
+}RegInfo_;
 
 void MipsPrint(const char* fileName);
 void MipsPrintTraverse();
@@ -30,5 +37,10 @@ void Mips4Addr(InterCode);
 
 Register AssignRegister(Operand);
 char* GetStrRegister(Register);
+
+void Reg2Mem(Register); //sw
+void Mem2Reg(Register,RegInfo); //lw
+
+int gStackFrameSize = 0;
 
 #endif
