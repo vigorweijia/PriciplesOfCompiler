@@ -52,4 +52,7 @@ void OperandPrint(Operand op, FILE* fp);
 extern int gTempVarCount;
 extern int gLabelCount;
 
+extern InterCode gInterCodeHead;
+extern InterCode gInterCodeTail;
+
 #endif

@@ -4,6 +4,7 @@
 #include "syntax.tab.h"
 #include "semanteme.h"
 #include "IRCode.h"
+#include "GenMips32.h"
 
 #define PRINT_TREE 1
 
@@ -32,7 +33,8 @@ int main(int argc, char** argv)
 #endif
 #endif
         Program(root);
-        InterCodePrint(argv[2]);
+        //InterCodePrint(argv[2]);
+        MipsPrint(argv[2]);
     }
     else
     {
