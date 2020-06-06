@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <stdlib.h>
 
 #include "GenMips32.h"
 
@@ -116,7 +117,7 @@ void Mips4Assign(InterCode p)
             //move r(x), r(y)
             rx = AssignRegister(left);
             ry = AssignRegister(right);
-            fprintf(mipsFp, "  move %s, %s\n", GetStrRegister(rx), GetStrRegister(ry));
+            fprintf(mipsFp, "  move %s, %s\n", gRegName[rx], gRegName[ry]);
             break;
         case TADDR_O:
         case VADDR_O:
@@ -124,13 +125,13 @@ void Mips4Assign(InterCode p)
             //lw r(x), 0(r(y))
             rx = AssignRegister(left);
             ry = AssignRegister(right);
-            fprintf(mipsFp, "  move %s, 0(%s)\n", GetStrRegister(rx), GetStrRegister(ry));
+            fprintf(mipsFp, "  move %s, 0(%s)\n", gRegName[rx], gRegName[ry]);
             break;
         case CONSTANT_O:
             //r1 := #k
             //li r(x), k
             rx = AssignRegister(left);
-            fprintf(mipsFp, "  li %s, %s\n", GetStrRegister(rx), right->value);
+            fprintf(mipsFp, "  li %s, %s\n", gRegName[rx], right->value);
             break;
         default:
             break;
@@ -142,7 +143,7 @@ void Mips4Assign(InterCode p)
         {
             rx = AssignRegister(left);
             ry = AssignRegister(right);
-            fprintf(mipsFp, "  sw %s, 0(%s)\n", GetStrRegister(ry), GetStrRegister(rx)); 
+            fprintf(mipsFp, "  sw %s, 0(%s)\n", gRegName[ry], gRegName[rx]); 
         }
     }
     else
@@ -171,17 +172,17 @@ void Mips4Op(InterCode p)
         switch (p->kind)
         {
         case ADD_C:
-            fprintf(mipsFp, "  add %s, %s, %s\n", GetStrRegister(rx), GetStrRegister(ry), GetStrRegister(rz));
+            fprintf(mipsFp, "  add %s, %s, %s\n", gRegName[rx], gRegName[ry], gRegName[rz]);
             break;
         case SUB_C:
-            fprintf(mipsFp, "  sub %s, %s, %s\n", GetStrRegister(rx), GetStrRegister(ry), GetStrRegister(rz));
+            fprintf(mipsFp, "  sub %s, %s, %s\n", gRegName[rx], gRegName[ry], gRegName[rz]);
             break;
         case MUL_C:
-            fprintf(mipsFp, "  mul %s, %s, %s\n", GetStrRegister(rx), GetStrRegister(ry), GetStrRegister(rz));
+            fprintf(mipsFp, "  mul %s, %s, %s\n", gRegName[rx], gRegName[ry], gRegName[rz]);
             break;
         case DIV_C:
-            fprintf(mipsFp, "  div %s, %s\n", GetStrRegister(ry), GetStrRegister(rz));
-            fprintf(mipsFp, "  mflo %s\n", GetStrRegister(rx));
+            fprintf(mipsFp, "  div %s, %s\n", gRegName[ry], gRegName[rz]);
+            fprintf(mipsFp, "  mflo %s\n", gRegName[rx]);
             break;
         default:
             break;
@@ -195,10 +196,10 @@ void Mips4Op(InterCode p)
         switch (p->kind)
         {
         case ADD_C:
-            fprintf(mipsFp, "  addi %s, %s, %s\n", GetStrRegister(rx), GetStrRegister(ry), op2->value);
+            fprintf(mipsFp, "  addi %s, %s, %s\n", gRegName[rx], gRegName[ry], op2->value);
             break;
         case SUB_C:
-            fprintf(mipsFp, "  addi %s, %s, -%s\n", GetStrRegister(rx), GetStrRegister(ry), op2->value);
+            fprintf(mipsFp, "  addi %s, %s, -%s\n", gRegName[rx], gRegName[ry], op2->value);
             break;
         default:
             assert(0);
@@ -213,11 +214,11 @@ void Mips4Op(InterCode p)
         switch (p->kind)
         {
         case ADD_C:
-            fprintf(mipsFp, "  addi %s, %s, %s\n", GetStrRegister(rx), GetStrRegister(rz), op1->value);
+            fprintf(mipsFp, "  addi %s, %s, %s\n", gRegName[rx], gRegName[rz], op1->value);
             break;
         case SUB_C:
             //TODO
-            fprintf(mipsFp, "  addi %s, %s, -%s\n", GetStrRegister(rx), GetStrRegister(rz), op1->value);
+            fprintf(mipsFp, "  addi %s, %s, -%s\n", gRegName[rx], gRegName[rz], op1->value);
             break;
         default:
             assert(0);
@@ -254,7 +255,7 @@ void Mips4Return(InterCode p)
     else if(op->kind == VARIABLE_O || op->kind == CONSTANT_O)
     {
         rx = AssignRegister(op);
-        fprintf(mipsFp, "  move $v0, %s\n", GetStrRegister(rx));
+        fprintf(mipsFp, "  move $v0, %s\n", gRegName[rx]);
     }
     fprintf(mipsFp, "  addi $sp, $sp, %d\n", gStackFrameSize);
     fprintf(mipsFp, "  lw $fp, 0($sp)\n");
@@ -288,7 +289,7 @@ void Mips4Read(InterCode p)
     fprintf(mipsFp, "  addi $sp, $sp, -4\n");
     fprintf(mipsFp, "  sw $ra, 0($sp)\n");
     fprintf(mipsFp, "  jal read\n");
-    fprintf(mipsFp, "  move %s, $v0\n", GetStrRegister(rx));
+    fprintf(mipsFp, "  move %s, $v0\n", gRegName[rx]);
     Reg2Mem(rx);
     fprintf(mipsFp, "  lw $ra, 0($sp)\n");
     fprintf(mipsFp, "  addi $sp, $sp, 4\n");
@@ -307,11 +308,11 @@ void Mips4Write(InterCode p)
     //addi $sp, $sp, 4
     if(op->kind == TEMPORARY_O || op->kind == VARIABLE_O)
     {
-        fprintf(mipsFp, "  move $a0, %s\n", GetStrRegister(rx));
+        fprintf(mipsFp, "  move $a0, %s\n", gRegName[rx]);
     }
     else if(op->kind == TADDR_O || op->kind == VADDR_O)
     {
-        fprintf(mipsFp, "  lw $a0, 0(%s)\n", GetStrRegister(rx));
+        fprintf(mipsFp, "  lw $a0, 0(%s)\n", gRegName[rx]);
     }
     else assert(0);
     Reg2Mem(rx);
@@ -338,7 +339,7 @@ void Mips4Call(InterCode p)
     fprintf(mipsFp, "  addi $sp, $sp, -4\n");
     fprintf(mipsFp, "  sw $ra, 0($sp)\n");
     fprintf(mipsFp, "  jal %s\n", right->value);
-    fprintf(mipsFp, "  move %s, $v0\n", GetStrRegister(rx));
+    fprintf(mipsFp, "  move %s, $v0\n", gRegName[rx]);
     Reg2Mem(rx);
     fprintf(mipsFp, "  lw $ra, 0($sp)\n");
     fprintf(mipsFp, "  addi $sp, $sp, 4\n");
@@ -365,7 +366,7 @@ void Mips4Ifgoto(InterCode p)
         {
             //IF x == y GOTO z
             //beq r(x), r(y), z
-            fprintf(mipsFp, "  beq %s, %s, %s\n",GetStrRegister(rx),GetStrRegister(ry),label->value);
+            fprintf(mipsFp, "  beq %s, %s, %s\n",gRegName[rx],gRegName[ry],label->value);
         }
         else if(opr[0] == '>')
         {
@@ -373,13 +374,13 @@ void Mips4Ifgoto(InterCode p)
             {
                 //IF x >= y GOTO z
                 //bge r(x), r(y), z
-                fprintf(mipsFp, "  bge %s, %s, %s\n",GetStrRegister(rx),GetStrRegister(ry),label->value);
+                fprintf(mipsFp, "  bge %s, %s, %s\n",gRegName[rx],gRegName[ry],label->value);
             }
             else
             {
                 //IF x > y GOTO z
                 //bgt r(x), r(y), z
-                fprintf(mipsFp, "  bgt %s, %s, %s\n",GetStrRegister(rx),GetStrRegister(ry),label->value);
+                fprintf(mipsFp, "  bgt %s, %s, %s\n",gRegName[rx],gRegName[ry],label->value);
             }   
         }
         else if(opr[0] == '<')
@@ -388,20 +389,20 @@ void Mips4Ifgoto(InterCode p)
             {
                 //IF x <= y GOTO z
                 //ble r(x), r(y), z
-                fprintf(mipsFp, "  ble %s, %s, %s\n",GetStrRegister(rx),GetStrRegister(ry),label->value);
+                fprintf(mipsFp, "  ble %s, %s, %s\n",gRegName[rx],gRegName[ry],label->value);
             }
             else
             {
                 //IF x < y GOTO z
                 //blt r(x), r(y), z
-                fprintf(mipsFp, "  blt %s, %s, %s\n",GetStrRegister(rx),GetStrRegister(ry),label->value);
+                fprintf(mipsFp, "  blt %s, %s, %s\n",gRegName[rx],gRegName[ry],label->value);
             }
         }
         else if(opr[0] == '!')
         {
             //IF x != y GOTO z
             //bne r(x), r(y), z
-            fprintf(mipsFp, "  bne %s, %s, %s\n",GetStrRegister(rx),GetStrRegister(ry),label->value);
+            fprintf(mipsFp, "  bne %s, %s, %s\n",gRegName[rx],gRegName[ry],label->value);
         }
         else assert(0);   
     }
@@ -412,7 +413,7 @@ void Mips4Ifgoto(InterCode p)
         {
             //IF x == #k GOTO z
             //beq r(x), k, z
-            fprintf(mipsFp, "  beq %s, %s, %s\n",GetStrRegister(rx),op2->value,label->value);
+            fprintf(mipsFp, "  beq %s, %s, %s\n",gRegName[rx],op2->value,label->value);
         }
         else if(opr[0] == '>')
         {
@@ -420,13 +421,13 @@ void Mips4Ifgoto(InterCode p)
             {
                 //IF x >= #k GOTO z
                 //bge r(x), k, z
-                fprintf(mipsFp, "  bge %s, %s, %s\n",GetStrRegister(rx),op2->value,label->value);
+                fprintf(mipsFp, "  bge %s, %s, %s\n",gRegName[rx],op2->value,label->value);
             }
             else
             {
                 //IF x > #k GOTO z
                 //bgt r(x), r(y), z
-                fprintf(mipsFp, "  bgt %s, %s, %s\n",GetStrRegister(rx),op2->value,label->value);
+                fprintf(mipsFp, "  bgt %s, %s, %s\n",gRegName[rx],op2->value,label->value);
             }   
         }
         else if(opr[0] == '<')
@@ -435,20 +436,20 @@ void Mips4Ifgoto(InterCode p)
             {
                 //IF x <= #k GOTO z
                 //ble r(x), k, z
-                fprintf(mipsFp, "  ble %s, %s, %s\n",GetStrRegister(rx),op2->value,label->value);
+                fprintf(mipsFp, "  ble %s, %s, %s\n",gRegName[rx],op2->value,label->value);
             }
             else
             {
                 //IF x < #k GOTO z
                 //blt r(x), k, z
-                fprintf(mipsFp, "  blt %s, %s, %s\n",GetStrRegister(rx),op2->value,label->value);
+                fprintf(mipsFp, "  blt %s, %s, %s\n",gRegName[rx],op2->value,label->value);
             }
         }
         else if(opr[0] == '!')
         {
             //IF x != #k GOTO z
             //bne r(x), k, z
-            fprintf(mipsFp, "  bne %s, %s, %s\n",GetStrRegister(rx),op2->value,label->value);
+            fprintf(mipsFp, "  bne %s, %s, %s\n",gRegName[rx],op2->value,label->value);
         }
         else assert(0);   
     }
@@ -459,7 +460,7 @@ void Mips4Ifgoto(InterCode p)
         {
             //IF #k == y GOTO z
             //beq r(y), k, z
-            fprintf(mipsFp, "  beq %s, %s, %s\n",GetStrRegister(ry),op1->value,label->value);
+            fprintf(mipsFp, "  beq %s, %s, %s\n",gRegName[ry],op1->value,label->value);
         }
         else if(opr[0] == '>')
         {
@@ -467,13 +468,13 @@ void Mips4Ifgoto(InterCode p)
             {
                 //IF #k >= y GOTO z
                 //ble r(y), k, z
-                fprintf(mipsFp, "  ble %s, %s, %s\n",GetStrRegister(ry),op1->value,label->value);
+                fprintf(mipsFp, "  ble %s, %s, %s\n",gRegName[ry],op1->value,label->value);
             }
             else
             {
                 //IF #k > y GOTO z
                 //bgt r(y), k, z
-                fprintf(mipsFp, "  blt %s, %s, %s\n",GetStrRegister(ry),op1->value,label->value);
+                fprintf(mipsFp, "  blt %s, %s, %s\n",gRegName[ry],op1->value,label->value);
             }   
         }
         else if(opr[0] == '<')
@@ -482,20 +483,20 @@ void Mips4Ifgoto(InterCode p)
             {
                 //IF #k <= y GOTO z
                 //bge r(y), k, z
-                fprintf(mipsFp, "  bge %s, %s, %s\n",GetStrRegister(ry),op1->value,label->value);
+                fprintf(mipsFp, "  bge %s, %s, %s\n",gRegName[ry],op1->value,label->value);
             }
             else
             {
                 //IF #k < y GOTO z
                 //bgt r(y), k, z
-                fprintf(mipsFp, "  bgt %s, %s, %s\n",GetStrRegister(ry),op1->value,label->value);
+                fprintf(mipsFp, "  bgt %s, %s, %s\n",gRegName[ry],op1->value,label->value);
             }
         }
         else if(opr[0] == '!')
         {
             //IF #k != y GOTO z
             //bne r(y), k, z
-            fprintf(mipsFp, "  bne %s, %s, %s\n",GetStrRegister(ry),op1->value,label->value);
+            fprintf(mipsFp, "  bne %s, %s, %s\n",gRegName[ry],op1->value,label->value);
         }
         else assert(0);   
     }
@@ -515,12 +516,86 @@ void Mips4Addr(InterCode p)
 
 }
 
-Register AssignRegister(Operand op)
+Register SelectRegister()
 {
-
+    static int freeReg = 7;
+    freeReg = (freeReg + 1)%8 + 8;
+    return (Register)freeReg;
 }
 
-char* GetStrRegister(Register r)
+Register AssignRegister(Operand op)
 {
+    assert(op->kind == TEMPORARY_O || op->kind == VARIABLE_O || op->kind == VADDR_O || op->kind == TADDR_O);
+    char* symName = NULL;
+    if(op->kind == TEMPORARY_O || op->kind == VADDR_O)
+    {
+        symName = (char*)malloc(20);
+        sprintf(symName,"t%d",op->varNo);
+    }
+    else
+    {
+        symName = op->value;
+    }
 
+    SymInfo symInfo = GetSymbolInfo(symName);
+    Register r = SelectRegister();
+    if(symInfo == NULL)
+    {
+
+    }
+    else
+    {
+        
+    }
+    
+}
+
+SymInfo GetSymbolInfo(const char* name)
+{
+    SymInfo p = gSymbolHead;
+    while(p != NULL)
+    {
+        if(strcmp(p->name, name) == 0)
+        {
+            return p;
+        }
+        p = p->next;
+    }
+    return NULL;
+}
+
+SymInfo NewSymbol(char* name, int offset, Register reg)
+{
+    SymInfo symInfo = (SymInfo)malloc(sizeof(SymInfo_));
+    symInfo->name = name;
+    symInfo->offset = offset;
+    symInfo->reg = reg;
+    symInfo->next = NULL;
+    return symInfo;
+}
+
+void AppendSymbol(SymInfo symInfo)
+{
+    assert(symInfo != NULL);
+    if(gSymbolHead == NULL)
+    {
+        gSymbolHead = symInfo;
+        gSymbolTail = symInfo;
+    }
+    else
+    {
+        gSymbolTail->next = symInfo;
+        gSymbolTail = symInfo;
+    }
+}
+
+void DestroySymbol(SymInfo p)
+{
+    if(p == NULL) return;
+    while(p != NULL)
+    {
+        SymInfo q = p;
+        p = p->next;
+        free(q);
+    }
 }
