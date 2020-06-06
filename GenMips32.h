@@ -5,6 +5,8 @@
 
 #include "IRCode.h"
 
+#define REG_MAX
+
 FILE* mipsFp;
 
 typedef int Register;
@@ -60,5 +62,9 @@ SymInfo gSymbolHead = NULL;
 SymInfo gSymbolTail = NULL;
 
 int gStackFrameSize = 0;
+int gOffset4Sp = 0;
+int gArgsCount = 0;
+int gParamCount = 0;
+SymInfo gRegBind2Sym[REG_MAX];
 
 #endif

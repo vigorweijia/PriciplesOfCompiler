@@ -236,12 +236,33 @@ void Mips4Op(InterCode p)
 
 void Mips4Func(InterCode p)
 {
-
+    Operand op = p->singleOp.op;
+    fprintf(mipsFp, "%s:\n", op->value);
+    fprintf(mipsFp, "  addi $sp, $sp, -4\n"); //$sp = $sp - 4
+    fprintf(mipsFp, "  sw $fp, 0($sp)\n"); //0($sp) = old fp
+    fprintf(mipsFp, "  move $fp, $sp\n");//$fp = $sp 
+    fprintf(mipsFp, "  subu $sp, $sp, %d\n",gStackFrameSize);//$sp = $sp - gStackFrameSize
+    gOffset4Sp = 0;
 }
 
 void Mips4Param(InterCode p)
 {
+    Operand op = p->singleOp.op;
+    gOffset4Sp = gOffset4Sp - 4;
+    SymInfo paramSym = NewSymbol(op->value, gOffset4Sp, -1);
+    AppendSymbol(paramSym);
 
+    if(gParamCount < 4)
+    {
+        fprintf(mipsFp, "  $a%d, %d($fp)\n", gParamCount, paramSym->offset);
+    }
+    else
+    {
+        fprintf(mipsFp, "  lw $s0, %d($fp)\n", (gParamCount-2)*4);
+        fprintf(mipsFp, "  sw $s0, %d($fp)\n", paramSym->offset);
+    }
+    gParamCount++;
+    if(p->next == NULL || p->next->kind != ARGS_C) gParamCount = 0;
 }
 
 void Mips4Return(InterCode p)
@@ -347,7 +368,33 @@ void Mips4Call(InterCode p)
 
 void Mips4Args(InterCode p)
 {
-
+    Operand op = p->singleOp.op;
+    SymInfo argSym = NULL;
+    assert(op->kind == VARIABLE_O || op->kind == TEMPORARY_O);
+    if(op->kind == VARIABLE_O)
+    {
+        argSym = GetSymbolInfo(op->value);
+    }
+    else
+    {
+        char* name = (char*)malloc(20);
+        sprintf(name, "t%d", op->varNo);
+        argSym = GetSymbolInfo(name);
+    }
+    
+    if(gArgsCount < 4)
+    {
+        fprintf(mipsFp, "  lw $a%d, %d($fp)\n", gArgsCount, argSym->offset);
+    }
+    else
+    {
+        fprintf(mipsFp, "  lw $s0, %d($fp)\n", argSym->offset);
+        fprintf(mipsFp, "  addi $sp, $sp, -4\n");
+        fprintf(mipsFp, "  sw $s0, 0($sp)\n");
+    }
+    
+    gArgsCount++;
+    if(p->next == NULL || p->next->kind != ARGS_C) gArgsCount = 0;
 }
 
 void Mips4Ifgoto(InterCode p)
@@ -508,12 +555,62 @@ void Mips4Ifgoto(InterCode p)
 
 void Mips4Dec(InterCode p)
 {
+    Operand op = p->dec.op;
+    int decSize = p->dec.size;
+    SymInfo decSym = NULL;
+    char* name = NULL;
 
+    assert(op->kind == TEMPORARY_O || op->kind == VARIABLE_O);
+    if(op->kind == TEMPORARY_O)
+    {
+        name = (char*)malloc(20);
+        sprintf(name, "t%d", op->varNo);
+    }
+    else
+    {
+        name = op->value;
+    }
+    decSym = NewSymbol(name, gOffset4Sp, -1);
+    gOffset4Sp -= decSize;
+
+    AppendSymbol(decSym);
+
+    fprintf(mipsFp, "  addi $s0, $fp, %d\n",gOffset4Sp);
+    fprintf(mipsFp, "  sw $s0, %d($fp)\n",decSym->offset);
 }
 
 void Mips4Addr(InterCode p)
 {
+    Operand left = p->assign.left;
+    Operand right = p->assign.right;
+    SymInfo symInfo = NULL;
+    Register r;
+    assert(right->kind == TEMPORARY_O || right->kind == VARIABLE_O);
+    if(right->kind == TEMPORARY_O)
+    {
+        char* name = (char*)malloc(20);
+        sprintf(name, "t%d", right->varNo);
+        symInfo = GetSymbolInfo(name);
+    }
+    else
+    {
+        symInfo = GetSymbolInfo(right->value);
+    }
+    
+    r = AssignRegister(left);
+    fprintf(mipsFp, "  lw %s, %d($fp)\n", gRegName[r], symInfo->offset);
+    Reg2Mem(r);
+}
 
+void Reg2Mem(Register r)
+{
+    fprintf(mipsFp, "  sw %s, %d($fp)\n", gRegName[r], gRegBind2Sym[r]->offset);
+}
+
+void Mem2Reg(Register r, SymInfo symInfo)
+{
+    gRegBind2Sym[r] = symInfo;
+    fprintf(mipsFp, "  lw %s, %d($fp)\n",gRegName[r], symInfo->offset);
 }
 
 Register SelectRegister()
@@ -541,13 +638,17 @@ Register AssignRegister(Operand op)
     Register r = SelectRegister();
     if(symInfo == NULL)
     {
-
+        gOffset4Sp -= 4;
+        symInfo = NewSymbol(symName, gOffset4Sp, r);
+        AppendSymbol(symInfo);
+        gRegBind2Sym[r] = symInfo;
     }
     else
     {
-        
+        symInfo->reg = r;
+        Mem2Reg(r, symInfo);
     }
-    
+    return r;
 }
 
 SymInfo GetSymbolInfo(const char* name)
