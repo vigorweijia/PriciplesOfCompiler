@@ -305,6 +305,7 @@ void InterCodePrint(const char* outputFileName)
         p = p->next;
     }
     
+    fclose(fp);
 }
 
 void OperandPrint(Operand op, FILE* fp)

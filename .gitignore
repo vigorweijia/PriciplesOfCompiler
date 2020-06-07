@@ -1,6 +1,7 @@
 *.cmm
 *.o
 *.ir
+*.s
 lex.yy.c
 syntax.tab.c
 syntax.tab.h

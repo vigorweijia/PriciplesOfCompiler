@@ -9,7 +9,7 @@
 SymInfo gSymbolHead = NULL;
 SymInfo gSymbolTail = NULL;
 
-int gStackFrameSize = 128;
+int gStackFrameSize = 256;
 int gOffset4Sp = 0;
 int gArgsCount = 0;
 int gParamCount = 0;
@@ -172,7 +172,20 @@ void Mips4Assign(InterCode p)
             ry = AssignRegister(right);
             fprintf(mipsFp, "  sw %s, 0(%s)\n", gRegName[ry], gRegName[rx]); 
         }
-        assert(0);
+        else if(right->kind == CONSTANT_O)
+        {
+            rx = AssignRegister(left);
+            fprintf(mipsFp, "  li $s4, %s\n", right->value);
+            fprintf(mipsFp, "  sw $s4, 0(%s)\n", gRegName[rx]);
+        }
+        else if(right->kind == VADDR_O || right->kind == TADDR_O)
+        {
+            rx = AssignRegister(left);
+            ry = AssignRegister(right);
+            fprintf(mipsFp, "  lw $s4, 0(%s)\n", gRegName[ry]);
+            fprintf(mipsFp, "  sw $s4, 0(%s)\n", gRegName[rx]);
+        }
+        else assert(0);
     }
     else
     {
@@ -227,7 +240,16 @@ void Mips4Op(InterCode p)
             fprintf(mipsFp, "  addi %s, %s, %s\n", gRegName[rx], gRegName[ry], op2->value);
             break;
         case SUB_C:
-            fprintf(mipsFp, "  addi %s, %s, -%s\n", gRegName[rx], gRegName[ry], op2->value);
+            fprintf(mipsFp, "  subu %s, %s, %s\n", gRegName[rx], gRegName[ry], op2->value);
+            break;
+        case MUL_C:
+            fprintf(mipsFp, "  li $s4, %s\n", op2->value);
+            fprintf(mipsFp, "  mul %s, %s, $s4\n", gRegName[rx], gRegName[ry]);
+            break;
+        case DIV_C:
+            fprintf(mipsFp, "  li $s4, %s\n", op2->value);
+            fprintf(mipsFp, "  div %s, $s4\n", gRegName[ry]);
+            fprintf(mipsFp, "  mflo %s\n", gRegName[rx]);
             break;
         default:
             assert(0);
@@ -245,9 +267,17 @@ void Mips4Op(InterCode p)
             fprintf(mipsFp, "  addi %s, %s, %s\n", gRegName[rx], gRegName[rz], op1->value);
             break;
         case SUB_C:
-            //TODO
-            assert(0);
-            fprintf(mipsFp, "  addi %s, %s, -%s\n", gRegName[rx], gRegName[rz], op1->value);
+            fprintf(mipsFp, "  li $s4, %s\n", op1->value);
+            fprintf(mipsFp, "  subu %s, $s4, %s\n", gRegName[rx], gRegName[rz]);
+            break;
+        case MUL_C:
+            fprintf(mipsFp, "  li $s4, %s\n", op1->value);
+            fprintf(mipsFp, "  mul %s, %s, $s4\n", gRegName[rx], gRegName[rz]);
+            break;
+        case DIV_C:
+            fprintf(mipsFp, "  li $s4, %s\n", op1->value);
+            fprintf(mipsFp, "  div $s4, %s\n", gRegName[rz]);
+            fprintf(mipsFp, "  mflo %s\n", gRegName[rx]);
             break;
         default:
             assert(0);
@@ -256,8 +286,22 @@ void Mips4Op(InterCode p)
     }
     else
     {
-        //TODO: x := #y + #z
-        assert(0);
+        //x := #k1 + #k2
+        rx = AssignRegister(result);
+        switch (p->kind)
+        {
+        case ADD_C:
+            fprintf(mipsFp, "  li $s4, %s\n", op1->value);
+            fprintf(mipsFp, "  addi %s, $s4, %s\n", gRegName[rx], op2->value);
+            break;
+        case SUB_C:
+            fprintf(mipsFp, "  li $s4, %s\n", op1->value);
+            fprintf(mipsFp, "  subu %s, $s4, %s\n", gRegName[rx], op2->value);
+            break;
+        default:
+            assert(0);
+            break;
+        }
     }
 
     Reg2Mem(rx);
@@ -378,6 +422,10 @@ void Mips4Write(InterCode p)
     {
         fprintf(mipsFp, "  lw $a0, 0(%s)\n", gRegName[rx]);
     }
+    else if(op->kind == CONSTANT_O)
+    {
+        fprintf(mipsFp, "  li $a0, %s\n", op->value);
+    }
     else assert(0);
     Reg2Mem(rx);
 
@@ -413,27 +461,65 @@ void Mips4Args(InterCode p)
 {
     Operand op = p->singleOp.op;
     SymInfo argSym = NULL;
-    assert(op->kind == VARIABLE_O || op->kind == TEMPORARY_O);
-    if(op->kind == VARIABLE_O)
+    if(op->kind == VARIABLE_O || op->kind == VADDR_O)
     {
         argSym = GetSymbolInfo(op->value);
     }
-    else
+    else if(op->kind == TEMPORARY_O || op->kind == TADDR_O)
     {
         char* name = (char*)malloc(20);
         sprintf(name, "t%d", op->varNo);
         argSym = GetSymbolInfo(name);
     }
-    
-    if(gArgsCount < 4)
+    else if(op->kind == CONSTANT_O)
     {
-        fprintf(mipsFp, "  lw $a%d, %d($fp)\n", gArgsCount, argSym->offset);
+        
     }
     else
     {
-        fprintf(mipsFp, "  lw $s0, %d($fp)\n", argSym->offset);
-        fprintf(mipsFp, "  addi $sp, $sp, -4\n");
-        fprintf(mipsFp, "  sw $s0, 0($sp)\n");
+        assert(0);
+    }
+    
+    
+    if(gArgsCount < 4)
+    {
+        if(op->kind == VADDR_O || op->kind == TADDR_O)
+        {
+            Register r = AssignRegister(op);
+            fprintf(mipsFp, "  lw $s4, 0(%s)\n", gRegName[r]);
+            Reg2Mem(r);
+            fprintf(mipsFp, "  move $a%d, $s4\n", gArgsCount);
+        }
+        else if(op->kind == TEMPORARY_O || op->kind == VARIABLE_O)
+        {
+            fprintf(mipsFp, "  lw $a%d, %d($fp)\n", gArgsCount, argSym->offset);
+        }
+        else
+        {
+            fprintf(mipsFp, "  li $a%d, %s\n", gArgsCount, op->value);
+        }
+    }
+    else
+    {   if(op->kind == VADDR_O || op->kind == TADDR_O)
+        {
+            Register r = AssignRegister(op);
+            fprintf(mipsFp, "  lw $s0, 0(%s)\n", gRegName[r]);
+            Reg2Mem(r);
+            fprintf(mipsFp, "  addi $sp, $sp, -4\n");
+            fprintf(mipsFp, "  sw $s0, 0($sp)\n");
+        }
+        else if(op->kind == TEMPORARY_O || op->kind == VARIABLE_O)
+        {
+            fprintf(mipsFp, "  lw $s0, %d($fp)\n", argSym->offset);
+            fprintf(mipsFp, "  addi $sp, $sp, -4\n");
+            fprintf(mipsFp, "  sw $s0, 0($sp)\n");
+        }
+        else
+        {
+            fprintf(mipsFp, "  li $s0, %s\n", op->value);
+            fprintf(mipsFp, "  addi $sp, $sp, -4\n");
+            fprintf(mipsFp, "  sw $s0, 0($sp)\n");
+        }
     }
     
     gArgsCount++;
@@ -575,10 +661,38 @@ void Mips4Ifgoto(InterCode p)
         }
         else assert(0);   
     }
-    else
+    else if ((op1->kind == VADDR_O || op1->kind == TADDR_O) && (op2->kind == VADDR_O || op2->kind == TADDR_O))
     {
-        assert(0);
+        rx = AssignRegister(op1);
+        ry = AssignRegister(op2);
+        fprintf(mipsFp, "  lw $s4, 0(%s)\n",gRegName[rx]);
+        fprintf(mipsFp, "  lw $s5, 0(%s)\n",gRegName[ry]);
+        if(strcmp(opr,"==") == 0)
+        {
+            fprintf(mipsFp, "  beq $s4, $s5, label%d\n",label->varNo);
+        }
+        else if(strcmp(opr,">=") == 0)
+        {
+            fprintf(mipsFp, "  bge $s4, $s5, label%d\n",label->varNo);
+        }
+        else if(strcmp(opr,">") == 0)
+        {
+            fprintf(mipsFp, "  bgt $s4, $s5, label%d\n",label->varNo);
+        }
+        else if(strcmp(opr,"<=") == 0)
+        {
+            fprintf(mipsFp, "  ble $s4, $s5, label%d\n",label->varNo);
+        }
+        else if(strcmp(opr,"<") == 0)
+        {
+            fprintf(mipsFp, "  blt $s4, $s5, label%d\n",label->varNo);
+        }
+        else if(strcmp(opr,"!=") == 0)
+        {
+            fprintf(mipsFp, "  bne $s4, $s5, label%d\n",label->varNo);
+        }
     }
+
 }
 
 void Mips4Dec(InterCode p)
@@ -634,11 +748,13 @@ void Mips4Addr(InterCode p)
 
 void Reg2Mem(Register r)
 {
+    if(r == -1) return;
     fprintf(mipsFp, "  sw %s, %d($fp)\n", gRegName[r], gRegBind2Sym[r]->offset);
 }
 
 void Mem2Reg(Register r, SymInfo symInfo)
 {
+    if(r == -1) return;
     gRegBind2Sym[r] = symInfo;
     fprintf(mipsFp, "  lw %s, %d($fp)\n",gRegName[r], symInfo->offset);
 }
@@ -652,6 +768,7 @@ Register SelectRegister()
 
 Register AssignRegister(Operand op)
 {
+    if(op->kind == CONSTANT_O) return -1;
     assert(op->kind == TEMPORARY_O || op->kind == VARIABLE_O || op->kind == VADDR_O || op->kind == TADDR_O);
     char* symName = NULL;
     if(op->kind == TEMPORARY_O || op->kind == TADDR_O)
