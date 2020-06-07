@@ -33,7 +33,7 @@ int main(int argc, char** argv)
 #endif
 #endif
         Program(root);
-        InterCodePrint("sample.ir");
+        //InterCodePrint("sample.ir");
         MipsPrint(argv[2]);
     }
     else

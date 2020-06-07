@@ -60,6 +60,8 @@ void MipsPrint(const char* fileName)
     MipsPrintTraverse();
 
     fclose(mipsFp);
+
+    DestroySymbol(gSymbolHead);
 }
 
 void MipsPrintTraverse()

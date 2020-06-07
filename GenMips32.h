@@ -44,7 +44,7 @@ void Mem2Reg(Register,SymInfo); //lw
 SymInfo GetSymbolInfo(const char*);
 SymInfo NewSymbol(char*,int,Register);
 void AppendSymbol();
-void SymbolDestroy(SymInfo);
+void DestroySymbol(SymInfo);
 
 /*extern SymInfo gSymbolHead;
 extern SymInfo gSymbolTail;
