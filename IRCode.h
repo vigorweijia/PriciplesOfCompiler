@@ -46,6 +46,9 @@ InterCode GenAssign(Operand left,Operand right);
 InterCode GenCall(Operand left,Operand right);
 InterCode GenAddr(Operand left,Operand right);
 
+void InterCodePrinter(const char* msg, FILE* fp);
+void InterCodeEndLine(FILE* fp);
+void InterCodePrintCal(InterCode p, FILE* fp);
 void InterCodePrint(const char* outputFileName);
 void OperandPrint(Operand op, FILE* fp);
 

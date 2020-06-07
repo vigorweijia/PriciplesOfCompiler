@@ -5,8 +5,6 @@
 
 #include "IRCode.h"
 
-#define REG_MAX
-
 FILE* mipsFp;
 
 typedef int Register;
@@ -38,16 +36,6 @@ void Mips4Ifgoto(InterCode);
 void Mips4Dec(InterCode);
 void Mips4Addr(InterCode);
 
-char* gRegName[]={
-    "$zero","$at","$v0","$v1",
-    "$a0","$a1","$a2","$a3",
-    "$t0","$t1","$t2","$t3",
-    "$t4","$t5","$t6","$t7",
-    "$s0","$s1","$s2","$s3",
-    "$s4","$s5","$s6","$s7",
-    "$t8","$t9","$k0","$k1",
-    "$gp","$sp","$fp","$ra"
-};
 Register AssignRegister(Operand);
 Register SelectRegister();
 
@@ -58,13 +46,13 @@ SymInfo NewSymbol(char*,int,Register);
 void AppendSymbol();
 void SymbolDestroy(SymInfo);
 
-SymInfo gSymbolHead = NULL;
-SymInfo gSymbolTail = NULL;
+/*extern SymInfo gSymbolHead;
+extern SymInfo gSymbolTail;
 
-int gStackFrameSize = 0;
-int gOffset4Sp = 0;
-int gArgsCount = 0;
-int gParamCount = 0;
-SymInfo gRegBind2Sym[REG_MAX];
+extern int gStackFrameSize;
+extern int gOffset4Sp;
+extern int gArgsCount;
+extern int gParamCount;
+extern SymInfo gRegBind2Sym[REG_MAX];*/
 
 #endif
